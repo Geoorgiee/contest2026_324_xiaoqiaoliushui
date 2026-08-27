@@ -1,0 +1,506 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_CHIP_CUSTOM
+
+comment "Espressif ESP32-P4 Configuration Options"
+
+choice
+    prompt "ESP32-P4 Chip Selection"
+    default ARCH_CHIP_ESP32P4
+
+config ARCH_CHIP_ESP32P4
+	bool "ESP32-P4"
+	select ARCH_RISCV
+	select RISCV_ISA_M
+	select RISCV_ISA_A
+	select RISCV_ISA_C
+	select RISCV_ISA_F
+	select ARCH_HAVE_MPU
+
+endchoice
+
+if ARCH_CHIP_ESP32P4
+
+comment "ESP32-P4 UART Configuration"
+
+config ESP32P4_UART0
+	bool "UART0 support"
+	default y
+	---help---
+		Enable UART0 driver support. UART0 is typically used as
+		the serial console on the ESP32-P4 EV Board.
+
+config ESP32P4_UART0_SERIAL_CONSOLE
+	bool "Use UART0 as serial console"
+	default y
+	depends on ESP32P4_UART0
+	---help---
+		Use UART0 as the serial console.
+
+config ESP32P4_UART0_BAUD
+	int "UART0 baud rate"
+	default 115200
+	depends on ESP32P4_UART0
+	---help---
+		UART0 default baud rate.
+
+config ESP32P4_UART0_BITS
+	int "UART0 data bits"
+	default 8
+	depends on ESP32P4_UART0
+
+config ESP32P4_UART0_PARITY
+	int "UART0 parity (0=none, 1=odd, 2=even)"
+	default 0
+	depends on ESP32P4_UART0
+
+config ESP32P4_UART0_2STOP
+	bool "UART0 two stop bits"
+	default n
+	depends on ESP32P4_UART0
+
+config ESP32P4_UART0_RXBUFSIZE
+	int "UART0 RX buffer size"
+	default 256
+	depends on ESP32P4_UART0
+
+config ESP32P4_UART0_TXBUFSIZE
+	int "UART0 TX buffer size"
+	default 256
+	depends on ESP32P4_UART0
+
+config ESP32P4_UART0_TX_GPIO
+	int "UART0 TX GPIO pin"
+	default 16
+	range 0 53
+	depends on ESP32P4_UART0
+	---help---
+		GPIO pin number for UART0 TX output.
+		Default is GPIO 16 (ESP32-P4 EV Board default).
+
+config ESP32P4_UART0_RX_GPIO
+	int "UART0 RX GPIO pin"
+	default 17
+	range 0 53
+	depends on ESP32P4_UART0
+	---help---
+		GPIO pin number for UART0 RX input.
+		Default is GPIO 17 (ESP32-P4 EV Board default).
+
+config ESP32P4_UART1
+	bool "UART1 support"
+	default n
+	---help---
+		Enable UART1 driver support.
+
+config ESP32P4_UART1_BAUD
+	int "UART1 baud rate"
+	default 115200
+	depends on ESP32P4_UART1
+
+config ESP32P4_UART1_BITS
+	int "UART1 data bits"
+	default 8
+	depends on ESP32P4_UART1
+
+config ESP32P4_UART1_PARITY
+	int "UART1 parity (0=none, 1=odd, 2=even)"
+	default 0
+	depends on ESP32P4_UART1
+
+config ESP32P4_UART1_2STOP
+	bool "UART1 two stop bits"
+	default n
+	depends on ESP32P4_UART1
+
+config ESP32P4_UART1_RXBUFSIZE
+	int "UART1 RX buffer size"
+	default 256
+	depends on ESP32P4_UART1
+
+config ESP32P4_UART1_TXBUFSIZE
+	int "UART1 TX buffer size"
+	default 256
+	depends on ESP32P4_UART1
+
+config ESP32P4_UART1_TX_GPIO
+	int "UART1 TX GPIO pin"
+	default 18
+	range 0 53
+	depends on ESP32P4_UART1
+	---help---
+		GPIO pin number for UART1 TX output.
+		Default is GPIO 18 (ESP32-P4 EV Board default).
+
+config ESP32P4_UART1_RX_GPIO
+	int "UART1 RX GPIO pin"
+	default 19
+	range 0 53
+	depends on ESP32P4_UART1
+	---help---
+		GPIO pin number for UART1 RX input.
+		Default is GPIO 19 (ESP32-P4 EV Board default).
+
+comment "ESP32-P4 Timer Configuration"
+
+config ESP32P4_TIMER
+	bool "HP Timer support"
+	default y
+	---help---
+		Enable the HP Timer driver for system tick.
+		Uses HP Timer Group 0, Timer 0.
+
+comment "ESP32-P4 GPIO Configuration"
+
+config ESP32P4_GPIO
+	bool "GPIO support"
+	default y
+	---help---
+		Enable the GPIO driver for the ESP32-P4.
+		Supports up to 54 GPIO pins.
+
+comment "ESP32-P4 Memory Configuration"
+
+config ESP32P4_PSRAM
+	bool "PSRAM support"
+	default n
+	---help---
+		Enable PSRAM (Pseudo-Static RAM) support.
+		ESP32-P4 supports external PSRAM via the MSPI interface.
+
+config ESP32P4_PSRAM_SIZE
+	int "PSRAM size in MB"
+	default 32
+	depends on ESP32P4_PSRAM
+	---help---
+		Size of the PSRAM in megabytes (up to 128 MB).
+
+choice
+	prompt "PSRAM mode"
+	default ESP32P4_PSRAM_MODE_OPI
+	depends on ESP32P4_PSRAM
+
+config ESP32P4_PSRAM_MODE_OPI
+	bool "OPI mode (Octal SPI)"
+	---help---
+		Use Octal SPI interface for PSRAM (higher bandwidth).
+
+config ESP32P4_PSRAM_MODE_QPI
+	bool "QPI mode (Quad SPI)"
+	---help---
+		Use Quad SPI interface for PSRAM.
+
+endchoice
+
+config ESP32P4_FLASH_SIZE
+	int "Flash size in MB"
+	default 16
+	---help---
+		Size of the SPI flash in megabytes.
+
+comment "ESP32-P4 Clock Configuration"
+
+config ESP32P4_CPU_FREQ_MHZ
+	int "CPU frequency in MHz"
+	default 400
+	---help---
+		Target CPU frequency in MHz.
+		The ESP32-P4 HP core supports up to 400 MHz.
+
+config ESP32P4_LTO
+	bool "Link-time optimization"
+	default n
+	---help---
+		Enable link-time optimization (LTO) for the build.
+		This can reduce code size but increases build time.
+
+comment "ESP32-P4 Peripheral Configuration"
+
+config ESP32P4_SPI1
+	bool "SPI1 bus support"
+	default n
+	---help---
+		Enable SPI1 bus driver.
+
+config ESP32P4_I2C0
+	bool "I2C0 bus support"
+	default n
+	---help---
+		Enable I2C0 bus driver.
+
+config ESP32P4_I2C1
+	bool "I2C1 bus support"
+	default n
+	---help---
+		Enable I2C1 bus driver.
+
+comment "ESP32-P4 BLE Configuration"
+
+config ESP32P4_BLE
+	bool "BLE support (requires ESP-IDF BLE component)"
+	default n
+	depends on ESP_IDF
+	---help---
+		Enable BLE (Bluetooth Low Energy) driver support for ESP32-P4.
+		This provides a GATT server implementation that can be used
+		for BLE communication.
+
+		NOTE: ESP32-P4 has NO built-in Bluetooth radio. This driver
+		requires an external BLE co-processor (e.g., ESP32-C6/H2)
+		connected via HCI UART, and the ESP-IDF BLE component must
+		be integrated into the build system.
+
+		If unsure, say N.
+
+choice
+	prompt "BLE stack selection"
+	default ESP32P4_BLE_BLUEDROID
+	depends on ESP32P4_BLE
+
+config ESP32P4_BLE_BLUEDROID
+	bool "Bluedroid stack"
+	---help---
+		Use the Bluedroid Bluetooth stack for BLE.
+		Bluedroid is the default Bluetooth stack in ESP-IDF.
+
+config ESP32P4_BLE_NIMBLE
+	bool "NimBLE stack"
+	---help---
+		Use the NimBLE Bluetooth stack for BLE.
+		NimBLE is a lightweight Bluetooth stack optimized
+		for BLE-only applications.
+
+endchoice
+
+config ESP32P4_BLE_DEVICE_NAME
+	string "BLE device name"
+	default "ESP32P4_BLE"
+	depends on ESP32P4_BLE
+	---help---
+		The device name advertised during BLE advertising.
+
+config ESP32P4_BLE_ADV_INT_MIN
+	int "Minimum advertising interval (units of 0.625ms)"
+	default 32
+	range 32 16384
+	depends on ESP32P4_BLE
+	---help---
+		Minimum advertising interval. The actual interval is
+		this value multiplied by 0.625ms. Default 32 = 20ms.
+
+config ESP32P4_BLE_ADV_INT_MAX
+	int "Maximum advertising interval (units of 0.625ms)"
+	default 64
+	range 32 16384
+	depends on ESP32P4_BLE
+	---help---
+		Maximum advertising interval. The actual interval is
+		this value multiplied by 0.625ms. Default 64 = 40ms.
+
+config ESP32P4_BLE_MTU
+	int "BLE MTU size"
+	default 500
+	range 23 517
+	depends on ESP32P4_BLE
+	---help---
+		Maximum Transmission Unit for BLE connections.
+		Range is 23 to 517 bytes.
+
+comment "ESP32-P4 SDMMC Configuration"
+
+config ESP32P4_SDMMC
+	bool "SDMMC support"
+	default n
+	select SDMMC
+	select MMCSD
+	select MMCSD_SDIO
+	---help---
+		Enable the SDMMC (SD/MMC) controller driver for the ESP32-P4.
+		This provides support for SD cards and eMMC devices connected
+		via the SDMMC interface.
+
+if ESP32P4_SDMMC
+
+config ESP32P4_SDMMC_DMA
+	bool "Enable SDMMC DMA"
+	default y
+	---help---
+		Enable DMA transfers for the SDMMC interface.
+		This improves performance for large block transfers.
+
+config ESP32P4_SDMMC_FREQ
+	int "SDMMC default frequency (Hz)"
+	default 40000000
+	---help---
+		Default SDMMC bus frequency in Hz.
+		SD cards typically support up to 50 MHz (SDR50).
+		Default is 40 MHz for reliable operation.
+
+endif # ESP32P4_SDMMC
+
+comment "ESP32-P4 MIPI-DSI Display Configuration"
+
+config ESP32P4_MIPI_DSI
+	bool "MIPI-DSI display support"
+	default n
+	---help---
+		Enable MIPI-DSI display driver for the ESP32-P4.
+		The ESP32-P4 supports MIPI-DSI 2.1 with up to 2 data
+		lanes at 2.5 Gbps/lane.
+
+if ESP32P4_MIPI_DSI
+
+config ESP32P4_MIPI_DSI_LANES
+	int "Number of DSI data lanes"
+	default 2
+	range 1 2
+	---help---
+		Number of MIPI-DSI data lanes to use (1 or 2).
+		Using 2 lanes doubles the available bandwidth.
+
+config ESP32P4_MIPI_DSI_LANE_RATE_MBPS
+	int "DSI lane bit rate (Mbps)"
+	default 1000
+	range 80 2500
+	---help---
+		Target lane bit rate in Mbps. The ESP32-P4 MIPI-DSI
+		PHY supports up to 2500 Mbps per lane. Higher rates
+		allow higher resolution and refresh rates. Typical
+		values: 500, 800, 1000, 1500.
+
+config ESP32P4_LCD_PANEL
+	bool "LCD panel support"
+	default n
+	depends on ESP32P4_MIPI_DSI
+	---help---
+		Enable LCD panel initialization via MIPI-DSI.
+
+if ESP32P4_LCD_PANEL
+
+choice ESP32P4_LCD_PANEL_TYPE
+	prompt "LCD panel type"
+	default ESP32P4_LCD_PANEL_ILI9881C
+	---help---
+		Select the LCD panel connected via MIPI-DSI.
+
+config ESP32P4_LCD_PANEL_ILI9881C
+	bool "ILI9881C (800x1280)"
+	---help---
+		ILI9881C LCD controller, 800x1280 resolution.
+		Used on many 5-inch MIPI-DSI displays.
+
+config ESP32P4_LCD_PANEL_EK79007
+	bool "EK79007 (1024x600)"
+	---help---
+		EK79007 LCD controller, 1024x600 resolution.
+		Used on 7-inch MIPI-DSI displays.
+
+config ESP32P4_LCD_PANEL_CUSTOM
+	bool "Custom panel"
+	---help---
+		Use custom panel configuration. You must provide
+		the video timing parameters and initialization
+		sequence for your specific panel.
+
+endchoice
+
+config ESP32P4_LCD_HRES
+	int "Horizontal resolution"
+	default 800 if ESP32P4_LCD_PANEL_ILI9881C
+	default 1024 if ESP32P4_LCD_PANEL_EK79007
+	default 800
+	---help---
+		Display horizontal resolution in pixels.
+
+config ESP32P4_LCD_VRES
+	int "Vertical resolution"
+	default 1280 if ESP32P4_LCD_PANEL_ILI9881C
+	default 600 if ESP32P4_LCD_PANEL_EK79007
+	default 600
+	---help---
+		Display vertical resolution in pixels.
+
+config ESP32P4_LCD_BPP
+	int "Bits per pixel"
+	default 16
+	range 16 24
+	---help---
+		Display color depth. 16 = RGB565, 24 = RGB888.
+
+config ESP32P4_LCD_DPI_CLK_MHZ
+	int "DPI pixel clock (MHz)"
+	default 80 if ESP32P4_LCD_PANEL_ILI9881C
+	default 48 if ESP32P4_LCD_PANEL_EK79007
+	default 48
+	---help---
+		DPI pixel clock frequency in MHz. This determines
+		the refresh rate along with the total timing.
+
+config ESP32P4_LCD_HSYNC
+	int "HSYNC pulse width"
+	default 40 if ESP32P4_LCD_PANEL_ILI9881C
+	default 10 if ESP32P4_LCD_PANEL_EK79007
+	default 10
+	---help---
+		HSYNC pulse width in pixel clock cycles.
+
+config ESP32P4_LCD_HBP
+	int "Horizontal back porch"
+	default 140 if ESP32P4_LCD_PANEL_ILI9881C
+	default 120 if ESP32P4_LCD_PANEL_EK79007
+	default 120
+	---help---
+		Horizontal back porch in pixel clock cycles.
+
+config ESP32P4_LCD_HFP
+	int "Horizontal front porch"
+	default 40 if ESP32P4_LCD_PANEL_ILI9881C
+	default 120 if ESP32P4_LCD_PANEL_EK79007
+	default 120
+	---help---
+		Horizontal front porch in pixel clock cycles.
+
+config ESP32P4_LCD_VSYNC
+	int "VSYNC pulse width"
+	default 4 if ESP32P4_LCD_PANEL_ILI9881C
+	default 1 if ESP32P4_LCD_PANEL_EK79007
+	default 1
+	---help---
+		VSYNC pulse width in lines.
+
+config ESP32P4_LCD_VBP
+	int "Vertical back porch"
+	default 16 if ESP32P4_LCD_PANEL_ILI9881C
+	default 20 if ESP32P4_LCD_PANEL_EK79007
+	default 20
+	---help---
+		Vertical back porch in lines.
+
+config ESP32P4_LCD_VFP
+	int "Vertical front porch"
+	default 16 if ESP32P4_LCD_PANEL_ILI9881C
+	default 10 if ESP32P4_LCD_PANEL_EK79007
+	default 10
+	---help---
+		Vertical front porch in lines.
+
+config ESP32P4_LCD_RESET_GPIO
+	int "LCD reset GPIO pin"
+	default -1
+	---help---
+		GPIO pin number for LCD hardware reset.
+		Set to -1 if no hardware reset is available.
+
+endif # ESP32P4_LCD_PANEL
+
+endif # ESP32P4_MIPI_DSI
+
+# Include TinyML configuration
+source "Kconfig.tinyml"
+
+endif # ARCH_CHIP_ESP32P4
+
+endif # ARCH_CHIP_CUSTOM

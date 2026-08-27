@@ -1,0 +1,105 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_CHIP_ESP32P4
+
+comment "ESP32-P4 TinyML Configuration"
+
+config ESP32P4_TINYML
+	bool "TinyML Support"
+	default n
+	select ESP32P4_PSRAM
+	---help---
+		Enable TensorFlow Lite Micro for edge AI applications.
+		Requires PSRAM support for model data and tensor arena.
+
+config ESP32P4_TFLITE_MICRO
+	bool "TensorFlow Lite Micro"
+	depends on ESP32P4_TINYML
+	default y
+	---help---
+		Include TFLite Micro runtime for model inference.
+		Provides micro_interpreter, micro_mutable_op_resolver,
+		and related APIs.
+
+config ESP32P4_TFLITE_ARENA_SIZE
+	int "Tensor arena size (KB)"
+	default 64
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Size of the tensor arena in kilobytes.
+		This is the memory used for model input/output tensors
+		and intermediate results. Increase for larger models.
+
+config ESP32P4_TINYML_OPS_CONV
+	bool "Enable Conv2D operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include Conv2D operation in the TFLite Micro resolver.
+		Required for convolutional neural networks.
+
+config ESP32P4_TINYML_OPS_DENSE
+	bool "Enable Dense (Fully Connected) operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include FullyConnected/Dense operation in the resolver.
+		Required for dense/fully-connected layers.
+
+config ESP32P4_TINYML_OPS_MAXPOOL
+	bool "Enable MaxPool2D operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include MaxPool2D operation in the resolver.
+		Required for pooling layers in CNNs.
+
+config ESP32P4_TINYML_OPS_RELU
+	bool "Enable ReLU activation operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include ReLU activation in the resolver.
+		Common activation function for neural networks.
+
+config ESP32P4_TINYML_OPS_SOFTMAX
+	bool "Enable Softmax operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include Softmax operation in the resolver.
+		Required for classification output layers.
+
+config ESP32P4_TINYML_OPS_QUANTIZE
+	bool "Enable Quantize/Dequantize operators"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include Quantize and Dequantize operations.
+		Required for quantized (int8) models.
+
+config ESP32P4_TINYML_OPS_RESHAPE
+	bool "Enable Reshape operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include Reshape operation in the resolver.
+
+config ESP32P4_TINYML_OPS_ADD
+	bool "Enable Add operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include Add operation in the resolver.
+
+config ESP32P4_TINYML_OPS_MUL
+	bool "Enable Mul operator"
+	default y
+	depends on ESP32P4_TFLITE_MICRO
+	---help---
+		Include Mul operation in the resolver.
+
+endif # ARCH_CHIP_ESP32P4

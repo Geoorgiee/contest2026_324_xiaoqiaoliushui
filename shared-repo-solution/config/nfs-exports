@@ -1,0 +1,19 @@
+# openvela NFS 导出配置
+# 生成时间: $(date)
+#
+# 用法: sudo cp nfs-exports /etc/exports && sudo exportfs -ra
+
+# 主共享目录
+/nfs/openvela 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash,fsid=0)
+
+# 裸仓库目录 (只读，用于 git --reference)
+/nfs/openvela/bare-repo 192.168.1.0/24(ro,sync,no_subtree_check,no_root_squash)
+
+# LFS 存储目录
+/nfs/openvela/lfs-storage 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)
+
+# 日志目录
+/nfs/openvela/logs 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)
+
+# 备份目录
+/nfs/openvela/backup 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)

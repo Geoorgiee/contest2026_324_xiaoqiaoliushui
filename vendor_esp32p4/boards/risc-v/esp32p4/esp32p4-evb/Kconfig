@@ -1,0 +1,202 @@
+#
+# vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-evb/Kconfig
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+if ARCH_BOARD_ESP32P4_EVB
+
+comment "ESP32-P4 EVB Board Options"
+
+config ESP32P4_EVB_LED
+	bool "Enable on-board LED support"
+	default y
+	depends on ESP32P4_GPIO
+	---help---
+		Enable support for the on-board LED on the ESP32-P4 EVB.
+		The LED is connected to GPIO 26 (active high).
+		GPIO 0 is used by the SPI flash and must not be used.
+
+config ESP32P4_EVB_BUTTON
+	bool "Enable on-board button support"
+	default y
+	depends on ESP32P4_GPIO
+	---help---
+		Enable support for the on-board boot button on the ESP32-P4 EVB.
+		The button is connected to GPIO 21 (active low).
+
+config ESP32P4_LCD_PANEL
+	bool "Enable LCD display"
+	default n
+	depends on ESP32P4_MIPI_DSI
+	---help---
+		Enable MIPI-DSI LCD display support on the ESP32-P4 EVB.
+		The EVB has a MIPI-DSI connector for LCD panels.
+
+config ESP32P4_EVB_TOUCHSCREEN
+	bool "Enable touchscreen"
+	default n
+	depends on ESP32P4_LCD_PANEL
+	---help---
+		Enable touchscreen input on the ESP32-P4 EVB LCD.
+
+config ESP32P4_EVB_USB
+	bool "Enable USB OTG support"
+	default n
+	depends on ESP32P4_USB
+	---help---
+		Enable USB OTG support on the ESP32-P4 EVB.
+		The EVB has a USB-C connector for USB OTG operation.
+
+config ESP32P4_EVB_SDCARD
+	bool "Enable SD card support"
+	default n
+	---help---
+		Enable SD card support on the ESP32-P4 EVB.
+		The EVB has an SD card slot connected via SDMMC interface.
+		This enables SD card detection, initialization, and
+		FAT filesystem mounting.
+
+if ESP32P4_EVB_SDCARD
+
+choice ESP32P4_EVB_SDCARD_INTERFACE
+	prompt "SD card interface type"
+	default ESP32P4_EVB_SDCARD_SDMMC
+	---help---
+		Select the interface used to communicate with the SD card.
+
+config ESP32P4_EVB_SDCARD_SDMMC
+	bool "SDMMC interface"
+	depends on ESP32P4_SDMMC
+	---help---
+		Use the SDMMC peripheral to communicate with the SD card.
+		This is the default and recommended interface for the
+		ESP32-P4 EVB. Supports 1-bit and 4-bit bus widths.
+
+config ESP32P4_EVB_SDCARD_SPI
+	bool "SPI interface"
+	depends on SPI
+	---help---
+		Use the SPI peripheral to communicate with the SD card.
+		This is an alternative interface when SDMMC is not
+		available or when the SD card is connected via SPI.
+
+endchoice # ESP32P4_EVB_SDCARD_INTERFACE
+
+config ESP32P4_EVB_SDCARD_MOUNTPOINT
+	string "SD card mount point"
+	default "/mnt/sdcard"
+	---help---
+		Mount point path for the SD card filesystem.
+
+config ESP32P4_EVB_SDCARD_AUTOMOUNT
+	bool "Auto-mount SD card at boot"
+	default y
+	---help---
+		Automatically mount the SD card filesystem during
+		board initialization. If disabled, the SD card can
+		be mounted manually via the mount command.
+
+config ESP32P4_EVB_SDCARD_DEVOPT
+	bool "Enable SD card filesystem operations"
+	default y
+	depends on ESP32P4_EVB_SDCARD_AUTOMOUNT
+	---help---
+		Enable basic filesystem read/write operations on the
+		SD card after mounting. This writes a test file and
+		reads it back to verify the SD card is working.
+
+if ESP32P4_EVB_SDCARD_SDMMC
+
+config ESP32P4_EVB_SDCARD_SDMMC_WIDTH
+	int "SDMMC bus width"
+	default 4
+	range 1 4
+	---help---
+		SDMMC bus width in bits. Use 4 for best performance.
+		Use 1 if only CMD and D0 lines are connected.
+
+config ESP32P4_EVB_SDCARD_SDMMC_DMA
+	bool "Enable SDMMC DMA"
+	default n
+	---help---
+		Enable DMA transfers for the SDMMC interface.
+		This improves performance for large block transfers.
+		Note: DMA is not yet implemented in the driver; leave disabled.
+
+config ESP32P4_EVB_SDCARD_CD_GPIO
+	int "Card detect GPIO pin (-1 to disable)"
+	default -1
+	---help---
+		GPIO pin number for SD card detection.
+		Set to -1 if card detect is not connected.
+		The signal is active low (low = card inserted).
+
+config ESP32P4_EVB_SDCARD_WP_GPIO
+	int "Write protect GPIO pin (-1 to disable)"
+	default -1
+	---help---
+		GPIO pin number for SD card write protect detection.
+		Set to -1 if write protect is not connected.
+		The signal is active low (low = write protected).
+
+endif # ESP32P4_EVB_SDCARD_SDMMC
+
+if ESP32P4_EVB_SDCARD_SPI
+
+config ESP32P4_EVB_SDCARD_SPI_BUS
+	int "SPI bus number"
+	default 1
+	---help---
+		SPI bus number to use for SD card communication.
+		Default is SPI1.
+
+config ESP32P4_EVB_SDCARD_SPI_FREQ_KHZ
+	int "SPI frequency (kHz)"
+	default 20000
+	---help---
+		SPI bus frequency in kHz for SD card communication.
+		Default 20000 (20 MHz). Maximum is 20 MHz for SPI mode.
+
+config ESP32P4_EVB_SDCARD_SPI_MOSI_GPIO
+	int "SPI MOSI GPIO pin"
+	default 11
+	---help---
+		GPIO pin number for SPI MOSI (Master Out Slave In).
+
+config ESP32P4_EVB_SDCARD_SPI_MISO_GPIO
+	int "SPI MISO GPIO pin"
+	default 12
+	---help---
+		GPIO pin number for SPI MISO (Master In Slave Out).
+
+config ESP32P4_EVB_SDCARD_SPI_CLK_GPIO
+	int "SPI CLK GPIO pin"
+	default 13
+	---help---
+		GPIO pin number for SPI clock.
+
+config ESP32P4_EVB_SDCARD_SPI_CS_GPIO
+	int "SPI CS GPIO pin"
+	default 14
+	---help---
+		GPIO pin number for SPI chip select (active low).
+
+endif # ESP32P4_EVB_SDCARD_SPI
+
+endif # ESP32P4_EVB_SDCARD
+
+endif # ARCH_BOARD_ESP32P4_EVB

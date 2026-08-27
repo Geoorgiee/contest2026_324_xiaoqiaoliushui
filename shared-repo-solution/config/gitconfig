@@ -1,0 +1,74 @@
+# openvela Git 配置模板
+# 用法: cp gitconfig ~/.gitconfig
+
+[user]
+    # 请替换为你的信息
+    name = Your Name
+    email = your.email@example.com
+
+[core]
+    # 性能优化
+    preloadindex = true
+    fscache = true
+    # 文件系统监控
+    fsmonitor = true
+    untrackedcache = true
+
+[gc]
+    # 自动垃圾回收
+    auto = 256
+    # 自动打包
+    autopacklimit = 50
+
+[pull]
+    # 拉取时使用 rebase
+    rebase = true
+
+[push]
+    # 推送时使用默认当前分支
+    default = current
+
+[fetch]
+    # 并行获取
+    parallel = 4
+
+[lfs]
+    # Git LFS 配置
+    fetchinclude = *
+    fetchexclude =
+
+[diff]
+    # 使用更好的差异算法
+    algorithm = histogram
+    # 色彩输出
+    colorMoved = default
+
+[merge]
+    # 使用更好的合并算法
+    conflictstyle = diff3
+
+[credential]
+    # 缓存认证信息
+    helper = cache --timeout=3600
+
+[alias]
+    # 常用别名
+    st = status
+    co = checkout
+    br = branch
+    ci = commit
+    lg = log --oneline --graph --decorate --all
+    last = log -1 HEAD
+    unstage = reset HEAD --
+    visual = !gitk
+
+[init]
+    # 默认分支名
+    defaultBranch = main
+
+[filter "lfs"]
+    # Git LFS 过滤器
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
