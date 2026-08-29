@@ -135,5 +135,37 @@ int esp32p4_lcd_initialize(void);
 
 void esp32p4_board_initialize(void);
 
+/****************************************************************************
+ * Name: esp32p4_spidev_register
+ *
+ * Description:
+ *   Register an SPI bus driver for the specified SPI port.
+ *
+ * Input Parameters:
+ *   port - SPI port number (2 for SPI2, 3 for SPI3)
+ *
+ * Returned Value:
+ *   OK on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int esp32p4_spidev_register(int port);
+
+/****************************************************************************
+ * Name: esp32p4_i2cbus_register
+ *
+ * Description:
+ *   Register an I2C bus driver for the specified I2C port.
+ *
+ * Input Parameters:
+ *   port - I2C port number (0 for I2C0, 1 for I2C1)
+ *
+ * Returned Value:
+ *   OK on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int esp32p4_i2cbus_register(int port);
+
 #endif /* __ASSEMBLY__ */
 #endif /* __VENDOR_ESP32P4_BOARDS_RISCV_ESP32P4_ESP32P4_EVB_SRC_ESP32P4_EVB_H */

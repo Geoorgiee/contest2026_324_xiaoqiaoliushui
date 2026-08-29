@@ -1,0 +1,22 @@
+make: Entering directory '/home/geo/contest2026_324_xiaoqiaoliushui/nuttx'
+CP: arch/dummy/Kconfig to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4/Kconfig
+CP: boards/dummy/Kconfig to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-evb/Kconfig
+LN: include/arch to arch/risc-v/include
+LN: drivers/platform to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/drivers/dummy
+LN: platform/board to /home/geo/contest2026_324_xiaoqiaoliushui/apps/platform/dummy
+LN: include/arch/chip to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4/include
+/home/geo/contest2026_324_xiaoqiaoliushui/nuttx/tools/link.sh /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4/include include/arch/chip
+LN: arch/risc-v/src/chip to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4
+LN: arch/risc-v/src/board to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-evb/src
+Create version.h
+LN: include/arch/board to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-evb/include
+touch .dirlinks
+chip/Make.defs:21: risc-v/Make.defs: No such file or directory
+make[1]: *** No rule to make target 'risc-v/Make.defs'.  Stop.
+make: *** [tools/Unix.mk:472: arch/risc-v/src/.context] Error 2
+make: *** Waiting for unfinished jobs....
+LN: platform/board to /home/geo/contest2026_324_xiaoqiaoliushui/apps/platform/dummy
+Register: sh
+Generating unified Rust library from registered crates...
+No valid Rust crates found to build
+make: Leaving directory '/home/geo/contest2026_324_xiaoqiaoliushui/nuttx'

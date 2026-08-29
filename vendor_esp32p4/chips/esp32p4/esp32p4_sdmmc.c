@@ -28,12 +28,13 @@
  *   - SD card detection and initialization
  *   - 1-bit and 4-bit SD bus modes
  *   - Configurable bus frequency
- *   - DMA transfers (optional)
+ *   - IDMAC DMA transfers (CONFIG_ESP32P4_SDMMC_DMA)
  *   - NuttX sdio_dev_s interface for MMC/SD block driver
  *
  * The ESP32-P4 SDMMC subsystem consists of:
- *   1. SDMMC Host Controller - SD protocol engine
- *   2. GDMA channel - DMA for data transfers
+ *   1. SDMMC Host Controller (DesignWare MCI) - SD protocol engine
+ *   2. IDMAC (Internal DMA Controller) - DMA for data transfers
+ *      using a ring of 64-byte aligned descriptors
  *   3. GPIO matrix - pin muxing for SD bus signals
  *
  ****************************************************************************/
@@ -55,6 +56,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/sdio.h>
 #include <nuttx/irq.h>
+#include <nuttx/kmalloc.h>
 
 #include "hardware/esp32p4_soc.h"
 #include "hardware/esp32p4_gpio.h"
@@ -64,14 +66,21 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* SDMMC Host Controller Base Address */
+/* SDMMC Host Controller Base Address
+ *
+ * On ESP32-P4 the SDMMC/SDHOST controller is accessed through the
+ * High-Performance Peripheral bus at 0x50083000 (cacheable).
+ * The 0x60007xxx range is the legacy APB mapping and is not correct
+ * for ESP32-P4.  The register layout follows the DesignWare Mobile
+ * Storage Host (MCI) controller v3.x specification.
+ */
 
-#define SDMMC_BASE                  0x60007000
+#define SDMMC_BASE                  0x50083000
 
-/* SDMMC Host Controller Registers */
+/* SDMMC Host Controller Registers (DesignWare MCI layout) */
 
 #define SDMMC_CTRL_REG              (SDMMC_BASE + 0x000)
-#define SDMMC_CLKDIV_REG           (SDMMC_BASE + 0x004)
+#define SDMMC_CLKDIV_REG           (SDMMC_BASE + 0x008)
 #define SDMMC_CLKENA_REG           (SDMMC_BASE + 0x010)
 #define SDMMC_TMOUT_REG            (SDMMC_BASE + 0x014)
 #define SDMMC_CTYPE_REG            (SDMMC_BASE + 0x018)
@@ -84,6 +93,7 @@
 #define SDMMC_RESP1_REG            (SDMMC_BASE + 0x034)
 #define SDMMC_RESP2_REG            (SDMMC_BASE + 0x038)
 #define SDMMC_RESP3_REG            (SDMMC_BASE + 0x03C)
+#define SDMMC_MINTSTS_REG          (SDMMC_BASE + 0x040)
 #define SDMMC_RINTSTS_REG          (SDMMC_BASE + 0x044)
 #define SDMMC_STATUS_REG           (SDMMC_BASE + 0x048)
 #define SDMMC_FIFOTH_REG           (SDMMC_BASE + 0x04C)
@@ -92,11 +102,22 @@
 #define SDMMC_TCBCNT_REG           (SDMMC_BASE + 0x05C)
 #define SDMMC_TBBCNT_REG           (SDMMC_BASE + 0x060)
 #define SDMMC_DEBNCE_REG           (SDMMC_BASE + 0x064)
-#define SDMMC_RST_REG              (SDMMC_BASE + 0x078)
+#define SDMMC_UHS_REG              (SDMMC_BASE + 0x074)
+#define SDMMC_RST_N_REG            (SDMMC_BASE + 0x078)
+
+/* IDMAC (Internal DMA Controller) Registers */
+
+#define SDMMC_BMOD_REG             (SDMMC_BASE + 0x080)
+#define SDMMC_PLDMND_REG           (SDMMC_BASE + 0x084)
+#define SDMMC_DBADDR_REG           (SDMMC_BASE + 0x088)
+#define SDMMC_IDSTS_REG            (SDMMC_BASE + 0x08C)
+#define SDMMC_IDINTEN_REG          (SDMMC_BASE + 0x090)
+#define SDMMC_DSCADDR_REG          (SDMMC_BASE + 0x094)
+#define SDMMC_BUFADDR_REG          (SDMMC_BASE + 0x098)
 
 /* SDMMC FIFO base address for data transfers */
 
-#define SDMMC_FIFO_REG             (SDMMC_BASE + 0x100)
+#define SDMMC_FIFO_REG             (SDMMC_BASE + 0x200)
 
 /* CTRL register bits */
 
@@ -105,6 +126,7 @@
 #define SDMMC_CTRL_DMA_RESET        (1 << 2)
 #define SDMMC_CTRL_INT_ENABLE       (1 << 4)
 #define SDMMC_CTRL_DMA_ENABLE       (1 << 5)
+#define SDMMC_CTRL_USE_IDMAC        (1 << 25) /* Use Internal DMA Controller */
 
 /* CMD register bits */
 
@@ -165,6 +187,55 @@
 #define SDMMC_CTYPE_1BIT            0x00000000
 #define SDMMC_CTYPE_4BIT            0x00000001
 #define SDMMC_CTYPE_8BIT            0x00000010
+
+/* BMOD register bits (Bus Mode / DMA Control) */
+
+#define SDMMC_BMOD_SWR              (1 << 0)   /* Software Reset */
+#define SDMMC_BMOD_FB               (1 << 1)   /* Fixed Burst */
+#define SDMMC_BMOD_DE               (1 << 7)   /* IDMAC Enable */
+
+/* IDSTS register bits (IDMAC Status) */
+
+#define SDMMC_IDSTS_TI              (1 << 0)   /* Transmit Interrupt */
+#define SDMMC_IDSTS_RI              (1 << 1)   /* Receive Interrupt */
+#define SDMMC_IDSTS_FBE             (1 << 2)   /* Fatal Bus Error */
+#define SDMMC_IDSTS_DU              (1 << 4)   /* Descriptor Unavailable */
+#define SDMMC_IDSTS_CES             (1 << 5)   /* Card Error Summary */
+#define SDMMC_IDSTS_NIS             (1 << 8)   /* Normal Interrupt Summary */
+#define SDMMC_IDSTS_AIS             (1 << 9)   /* Abnormal Interrupt Summary */
+
+#define SDMMC_IDSTS_ERROR_MASK      (SDMMC_IDSTS_FBE | SDMMC_IDSTS_CES | \
+                                     SDMMC_IDSTS_DU | SDMMC_IDSTS_AIS)
+#define SDMMC_IDSTS_DONE_MASK       (SDMMC_IDSTS_TI | SDMMC_IDSTS_RI | \
+                                     SDMMC_IDSTS_NIS)
+
+/* IDINTEN register bits (IDMAC Interrupt Enable) */
+
+#define SDMMC_IDINTEN_TI            (1 << 0)   /* TX Interrupt Enable */
+#define SDMMC_IDINTEN_RI            (1 << 1)   /* RX Interrupt Enable */
+#define SDMMC_IDINTEN_FBE           (1 << 2)   /* Fatal Bus Error Enable */
+#define SDMMC_IDINTEN_DU            (1 << 4)   /* Desc Unavailable Enable */
+#define SDMMC_IDINTEN_CES           (1 << 5)   /* Card Error Summary Enable */
+#define SDMMC_IDINTEN_NI            (1 << 8)   /* Normal Int Summary Enable */
+#define SDMMC_IDINTEN_AI            (1 << 9)   /* Abnormal Int Summary Enable */
+
+/* DMA descriptor flags (DES0 word) */
+
+#define SDMMC_DES0_OWN              (1 << 31)  /* Owned by IDMAC */
+#define SDMMC_DES0_CES              (1 << 30)  /* Card Error Summary */
+#define SDMMC_DES0_END_OF_RING      (1 << 26)  /* End of Ring */
+#define SDMMC_DES0_CHAIN            (1 << 4)   /* Second Address Chained */
+#define SDMMC_DES0_FIRST_DESC       (1 << 3)   /* First Descriptor */
+#define SDMMC_DES0_LAST_DESC        (1 << 2)   /* Last Descriptor */
+#define SDMMC_DES0_DIS_INT          (1 << 1)   /* Disable Interrupt on Compl */
+
+/* DMA maximum buffer length per descriptor */
+
+#define SDMMC_DMA_MAX_BUF_LEN       4096
+
+/* DMA descriptor count (number of descriptors in the ring) */
+
+#define SDMMC_DMA_DESC_COUNT        4
 
 /* CDETECT register bits */
 
@@ -232,15 +303,63 @@
  * Private Types
  ****************************************************************************/
 
+/* IDMAC DMA Descriptor Structure (64 bytes, cache-line aligned)
+ *
+ * Each descriptor describes a single buffer transfer.  The IDMAC walks
+ * a linked list of these descriptors to perform the data move between
+ * the SDMMC FIFO and system memory without CPU intervention.
+ *
+ * The layout matches the DesignWare MCI IDMAC descriptor specification:
+ *   Word 0 (DES0) - Control and status flags
+ *   Word 1 (DES1) - Buffer sizes
+ *   Word 2 (DES2) - Buffer 1 pointer
+ *   Word 3 (DES3) - Buffer 2 / next descriptor pointer
+ *   Bytes 16..63  - Padding to reach 64-byte cache-line alignment
+ *                    (required by ESP32-P4 L1 cache)
+ */
+
+struct sdmmc_dma_desc_s
+{
+  volatile uint32_t  des0;              /* Control / Status flags */
+  volatile uint32_t  des1;              /* Buffer1 size | Buffer2 size */
+  volatile uint32_t  buffer1_ptr;       /* Physical address of buffer 1 */
+  volatile uint32_t  next_desc_ptr;     /* Physical address of next descriptor */
+  uint32_t           reserved[12];      /* Pad to 64 bytes (ESP32-P4 cache line) */
+};
+
+/* Verify the descriptor is exactly 64 bytes */
+
+_Static_assert(sizeof(struct sdmmc_dma_desc_s) == 64,
+               "sdmmc_dma_desc_s must be 64 bytes");
+
+/* DMA Transfer State - tracks an in-progress DMA operation */
+
+struct sdmmc_dma_transfer_s
+{
+  uint8_t           *ptr;               /* Current data pointer */
+  size_t             size_remaining;    /* Bytes left to transfer */
+  size_t             next_desc;         /* Index of next descriptor to fill */
+  size_t             desc_remaining;    /* Descriptors remaining to fill */
+};
+
 /* SDMMC device structure implementing the NuttX sdio_dev_s interface */
 
 struct esp32p4_sdmmc_dev_s
 {
-  struct sdio_dev_s  dev;        /* Must be first - NuttX SDIO interface */
-  uint32_t           clkdiv;     /* Current clock divider */
-  uint32_t           buswidth;   /* Current bus width (1 or 4) */
-  bool               card_init;  /* Card initialized flag */
-  uint32_t           rca;        /* Relative Card Address */
+  struct sdio_dev_s         dev;           /* Must be first - NuttX SDIO interface */
+  uint32_t                  clkdiv;        /* Current clock divider */
+  uint32_t                  buswidth;      /* Current bus width (1 or 4) */
+  bool                      card_init;     /* Card initialized flag */
+  uint32_t                  rca;           /* Relative Card Address */
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  struct sdmmc_dma_desc_s  *dma_desc;      /* DMA descriptor ring (64B aligned) */
+  size_t                    dma_desc_num;  /* Number of descriptors in ring */
+  struct sdmmc_dma_transfer_s dma_xfer;   /* Current DMA transfer state */
+  bool                      dma_active;    /* DMA transfer in progress */
+  sdio_eventset_t           dma_eventset;  /* Requested DMA events */
+  sdio_callback_t           dma_callback;  /* DMA completion callback */
+  void                     *dma_cb_arg;    /* Callback argument */
+#endif
 };
 
 /****************************************************************************
@@ -259,6 +378,21 @@ static void sdmmc_configure_pins(void);
 /* SD card initialization sequence */
 
 static int  sdmmc_card_init_sequence(struct esp32p4_sdmmc_dev_s *priv);
+
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+/* DMA operations */
+
+static void sdmmc_dma_init(struct esp32p4_sdmmc_dev_s *priv);
+static void sdmmc_dma_prepare(struct esp32p4_sdmmc_dev_s *priv,
+                              void *buffer, size_t buflen,
+                              size_t block_size);
+static void sdmmc_dma_fill_descriptors(struct esp32p4_sdmmc_dev_s *priv,
+                                       size_t num_desc);
+static void sdmmc_dma_start(struct esp32p4_sdmmc_dev_s *priv);
+static void sdmmc_dma_stop(struct esp32p4_sdmmc_dev_s *priv);
+static bool sdmmc_dma_poll_demand(struct esp32p4_sdmmc_dev_s *priv);
+static void sdmmc_dma_deinit(struct esp32p4_sdmmc_dev_s *priv);
+#endif
 
 /* NuttX sdio_dev_s interface implementation */
 
@@ -302,6 +436,14 @@ static struct esp32p4_sdmmc_dev_s g_sdmmc_dev =
   .buswidth   = SDMMC_BUS_WIDTH_1BIT,
   .card_init  = false,
   .rca        = 0,
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  .dma_desc   = NULL,
+  .dma_desc_num = SDMMC_DMA_DESC_COUNT,
+  .dma_active = false,
+  .dma_eventset = 0,
+  .dma_callback = NULL,
+  .dma_cb_arg   = NULL,
+#endif
 };
 
 /* SDIO operations vtable */
@@ -424,19 +566,53 @@ static void sdmmc_reset(void)
 
   REG_WRITE(SDMMC_BLKSIZ_REG, 512);
 
-  /* Set FIFO threshold */
+  /* Set FIFO threshold.
+   *
+   * FIFOTH register layout (DesignWare MCI):
+   *   bits[11:0]   TX_WMARK  - TX FIFO watermark
+   *   bits[26:16]  RX_WMARK  - RX FIFO watermark
+   *   bits[30:28]  MSIZE     - DMA burst size (multiple transaction size)
+   *
+   * The FIFO depth is 512 words (2048 bytes).
+   * For DMA: TX_WMARK = FIFO_DEPTH - MSIZE, RX_WMARK = MSIZE.
+   * MSIZE = 7 means 256-byte bursts (matching IDMAC INCR16).
+   */
 
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  REG_WRITE(SDMMC_FIFOTH_REG,
+            (7 << 28) |       /* MSIZE = 7 (256 bytes) */
+            (16 << 16) |      /* RX_WMARK = 16 */
+            (240 << 0));      /* TX_WMARK = 240 */
+#else
   REG_WRITE(SDMMC_FIFOTH_REG, SDMMC_FIFOTH_DEFAULT);
+#endif
 
   /* Set debounce count */
 
   REG_WRITE(SDMMC_DEBNCE_REG, SDMMC_DEBNCE_DEFAULT);
 
-  /* Enable interrupts */
+  /* Enable interrupts.
+   *
+   * In DMA mode the FIFO data request interrupts (RXDR/TXDR) are not
+   * needed because the IDMAC handles all data movement.  In PIO mode
+   * those interrupts drive the CPU-driven FIFO read/write loop.
+   */
 
-  REG_WRITE(SDMMC_INTMASK_REG, SDMMC_INT_CMD_DONE |
-                                 SDMMC_INT_DATA_OVER |
-                                 SDMMC_INT_ERROR_MASK);
+  {
+    uint32_t intmask = SDMMC_INT_CMD_DONE |
+                       SDMMC_INT_DATA_OVER |
+                       SDMMC_INT_ERROR_MASK;
+
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+    /* In DMA mode, the IDMAC handles FIFO data movement.
+     * Suppress the FIFO data request interrupts.
+     */
+
+    intmask &= ~(SDMMC_INT_RXDR | SDMMC_INT_TXDR);
+#endif
+
+    REG_WRITE(SDMMC_INTMASK_REG, intmask);
+  }
 }
 
 /****************************************************************************
@@ -948,6 +1124,333 @@ static int sdmmc_card_init_sequence(struct esp32p4_sdmmc_dev_s *priv)
   return OK;
 }
 
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+
+/****************************************************************************
+ * Name: sdmmc_dma_init
+ *
+ * Description:
+ *   Allocate and initialize the IDMAC DMA descriptor ring.
+ *
+ *   The IDMAC (Internal DMA Controller) is part of the DesignWare MCI
+ *   host controller.  It uses a linked list of descriptors (each 64
+ *   bytes, cache-line aligned on ESP32-P4) to move data between the
+ *   SDMMC FIFO and system memory without CPU intervention.
+ *
+ *   This function:
+ *     1. Allocates a cache-line-aligned descriptor ring
+ *     2. Clears all descriptors
+ *     3. Configures the BMOD and IDINTEN registers
+ *     4. Programs the DBADDR register with the ring base address
+ *
+ ****************************************************************************/
+
+static void sdmmc_dma_init(struct esp32p4_sdmmc_dev_s *priv)
+{
+  /* Allocate descriptors with 64-byte alignment.
+   * Each descriptor is exactly 64 bytes (one cache line on ESP32-P4).
+   */
+
+  priv->dma_desc = (struct sdmmc_dma_desc_s *)
+    kmm_memalign(64, sizeof(struct sdmmc_dma_desc_s) * priv->dma_desc_num);
+
+  DEBUGASSERT(priv->dma_desc != NULL);
+
+  /* Zero the descriptor ring - clears the OWNED_BY_IDMAC bit in all
+   * descriptors so the IDMAC will not process stale entries.
+   */
+
+  memset(priv->dma_desc, 0,
+         sizeof(struct sdmmc_dma_desc_s) * priv->dma_desc_num);
+
+  /* Reset the IDMAC internal state via BMOD.SWR */
+
+  REG_WRITE(SDMMC_BMOD_REG, SDMMC_BMOD_SWR);
+
+  /* Wait for the software reset bit to self-clear (one clock cycle) */
+
+  while (REG_READ(SDMMC_BMOD_REG) & SDMMC_BMOD_SWR)
+    {
+      up_udelay(1);
+    }
+
+  /* Enable the IDMAC:
+   *   BMOD.DE  = 1 (IDMAC enable)
+   *   BMOD.FB  = 1 (Fixed burst - use INCR4/8/16 for better throughput)
+   */
+
+  REG_WRITE(SDMMC_BMOD_REG, SDMMC_BMOD_DE | SDMMC_BMOD_FB);
+
+  /* Set the USE_INTERNAL_DMA bit in CTRL to route DMA through the IDMAC
+   * (as opposed to an external DMA controller).
+   */
+
+  REG_SET_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_USE_IDMAC);
+
+  /* Set the descriptor base address.
+   * The LSB two bits are ignored by the hardware.
+   */
+
+  REG_WRITE(SDMMC_DBADDR_REG, (uint32_t)priv->dma_desc);
+
+  /* Enable IDMAC interrupts:
+   *   TI  - Transmit Interrupt  (write complete)
+   *   RI  - Receive Interrupt   (read complete)
+   *   NI  - Normal Interrupt Summary
+   *   FBE - Fatal Bus Error
+   *   AI  - Abnormal Interrupt Summary
+   */
+
+  REG_WRITE(SDMMC_IDINTEN_REG,
+            SDMMC_IDINTEN_TI | SDMMC_IDINTEN_RI | SDMMC_IDINTEN_NI |
+            SDMMC_IDINTEN_FBE | SDMMC_IDINTEN_AI);
+
+  /* Clear any pending IDMAC status bits */
+
+  REG_WRITE(SDMMC_IDSTS_REG, 0xffffffff);
+
+  sdinfo("DMA initialized: desc=%p count=%zu\n",
+         priv->dma_desc, priv->dma_desc_num);
+}
+
+/****************************************************************************
+ * Name: sdmmc_dma_fill_descriptors
+ *
+ * Description:
+ *   Fill up to num_desc descriptors for the current transfer.
+ *
+ *   This walks the descriptor ring starting at dma_xfer.next_desc and
+ *   sets up each descriptor with:
+ *     - Buffer1 pointer = current data pointer
+ *     - Buffer1 size    = min(remaining, 4096)
+ *     - CHAIN flag      = 1 (next_desc_ptr points to following desc)
+ *     - LAST_DESC flag  = 1 on the final descriptor
+ *     - OWNED_BY_IDMAC  = 1 (hand ownership to the DMA engine)
+ *
+ ****************************************************************************/
+
+static void sdmmc_dma_fill_descriptors(struct esp32p4_sdmmc_dev_s *priv,
+                                       size_t num_desc)
+{
+  struct sdmmc_dma_transfer_s *xfer = &priv->dma_xfer;
+  size_t i;
+
+  for (i = 0; i < num_desc; i++)
+    {
+      if (xfer->size_remaining == 0)
+        {
+          break;
+        }
+
+      size_t next = xfer->next_desc;
+      struct sdmmc_dma_desc_s *desc = &priv->dma_desc[next];
+
+      /* This descriptor must have been released by the IDMAC */
+
+      DEBUGASSERT((desc->des0 & SDMMC_DES0_OWN) == 0);
+
+      /* Calculate buffer size for this descriptor */
+
+      size_t sz = (xfer->size_remaining < SDMMC_DMA_MAX_BUF_LEN) ?
+                  xfer->size_remaining : SDMMC_DMA_MAX_BUF_LEN;
+      bool last = (sz == xfer->size_remaining);
+
+      /* Fill the descriptor fields */
+
+      desc->des0 = SDMMC_DES0_CHAIN | SDMMC_DES0_OWN;
+      if (next == 0)
+        {
+          desc->des0 |= SDMMC_DES0_FIRST_DESC;
+        }
+
+      if (last)
+        {
+          desc->des0 |= SDMMC_DES0_LAST_DESC;
+          desc->next_desc_ptr = 0;
+        }
+      else
+        {
+          desc->next_desc_ptr =
+            (uint32_t)&priv->dma_desc[(next + 1) % priv->dma_desc_num];
+        }
+
+      /* Buffer size in DES1: bits[12:0] = buffer1, bits[25:13] = buffer2 */
+
+      desc->des1 = (sz + 3) & ~3u;  /* Round up to 4-byte boundary */
+      desc->buffer1_ptr = (uint32_t)xfer->ptr;
+
+      xfer->size_remaining -= sz;
+      xfer->ptr += sz;
+      xfer->next_desc = (next + 1) % priv->dma_desc_num;
+    }
+}
+
+/****************************************************************************
+ * Name: sdmmc_dma_prepare
+ *
+ * Description:
+ *   Prepare the DMA engine for a data transfer.
+ *
+ *   This function:
+ *     1. Clears the descriptor ring
+ *     2. Sets up the first descriptor
+ *     3. Fills the ring with descriptors covering the entire buffer
+ *     4. Programs BYTCNT and BLKSIZ
+ *     5. Enables DMA in the controller (CTRL.DMA_ENABLE)
+ *     6. Writes the descriptor base address (DBADDR)
+ *     7. Issues a poll demand to start the IDMAC
+ *
+ ****************************************************************************/
+
+static void sdmmc_dma_prepare(struct esp32p4_sdmmc_dev_s *priv,
+                              void *buffer, size_t buflen,
+                              size_t block_size)
+{
+  /* Clear the descriptor ring - all OWN bits cleared so IDMAC
+   * will not process stale entries.
+   */
+
+  memset(priv->dma_desc, 0,
+         sizeof(struct sdmmc_dma_desc_s) * priv->dma_desc_num);
+
+  /* Save transfer info */
+
+  priv->dma_xfer.ptr = (uint8_t *)buffer;
+  priv->dma_xfer.size_remaining = buflen;
+  priv->dma_xfer.next_desc = 0;
+  priv->dma_xfer.desc_remaining =
+    (buflen + SDMMC_DMA_MAX_BUF_LEN - 1) / SDMMC_DMA_MAX_BUF_LEN;
+
+  /* Fill as many descriptors as the ring can hold */
+
+  sdmmc_dma_fill_descriptors(priv, priv->dma_desc_num);
+
+  /* Program the host controller data transfer registers */
+
+  REG_WRITE(SDMMC_BYTCNT_REG, buflen);
+  REG_WRITE(SDMMC_BLKSIZ_REG, block_size);
+
+  /* Set the descriptor base address */
+
+  REG_WRITE(SDMMC_DBADDR_REG, (uint32_t)priv->dma_desc);
+
+  /* Enable DMA in the host controller:
+   *   CTRL.dma_enable      = 1
+   *   CTRL.use_internal_dma = 1 (IDMAC)
+   */
+
+  REG_SET_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_DMA_ENABLE);
+  REG_SET_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_USE_IDMAC);
+
+  /* Clear any pending IDMAC status */
+
+  REG_WRITE(SDMMC_IDSTS_REG, 0xffffffff);
+
+  priv->dma_active = true;
+
+  sdinfo("DMA prepared: buf=%p len=%zu blk=%zu desc_addr=%p\n",
+         buffer, buflen, block_size, priv->dma_desc);
+}
+
+/****************************************************************************
+ * Name: sdmmc_dma_start
+ *
+ * Description:
+ *   Start the DMA transfer by issuing a poll demand to the IDMAC.
+ *
+ *   The poll demand write causes the IDMAC to re-read the descriptor
+ *   ring and begin fetching data.  Without this, the IDMAC FSM stays
+ *   in the SUSPEND state waiting for software to kick it.
+ *
+ ****************************************************************************/
+
+static void sdmmc_dma_start(struct esp32p4_sdmmc_dev_s *priv)
+{
+  /* Issue poll demand - any write to PLDMND resumes the IDMAC */
+
+  REG_WRITE(SDMMC_PLDMND_REG, 1);
+}
+
+/****************************************************************************
+ * Name: sdmmc_dma_stop
+ *
+ * Description:
+ *   Stop any in-progress DMA transfer and reset the DMA engine.
+ *
+ ****************************************************************************/
+
+static void sdmmc_dma_stop(struct esp32p4_sdmmc_dev_s *priv)
+{
+  /* Disable DMA in the host controller */
+
+  REG_CLR_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_DMA_ENABLE);
+  REG_CLR_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_USE_IDMAC);
+
+  /* Reset the DMA interface */
+
+  REG_SET_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_DMA_RESET);
+
+  while (REG_READ(SDMMC_CTRL_REG) & SDMMC_CTRL_DMA_RESET)
+    {
+      up_udelay(1);
+    }
+
+  /* Disable IDMAC in BMOD */
+
+  REG_CLR_BIT(SDMMC_BMOD_REG, SDMMC_BMOD_DE);
+
+  /* Clear IDMAC status */
+
+  REG_WRITE(SDMMC_IDSTS_REG, 0xffffffff);
+
+  priv->dma_active = false;
+}
+
+/****************************************************************************
+ * Name: sdmmc_dma_poll_demand
+ *
+ * Description:
+ *   Check if more descriptors need to be fed to the IDMAC and, if so,
+ *   issue a poll demand.  This is called from the ISR when the
+ *   IDMAC signals Descriptor Unavailable (DU).
+ *
+ * Returned Value:
+ *   true if a poll demand was issued, false if no more work.
+ *
+ ****************************************************************************/
+
+static bool sdmmc_dma_poll_demand(struct esp32p4_sdmmc_dev_s *priv)
+{
+  if (priv->dma_xfer.size_remaining > 0)
+    {
+      sdmmc_dma_fill_descriptors(priv, priv->dma_desc_num);
+      REG_WRITE(SDMMC_PLDMND_REG, 1);
+      return true;
+    }
+
+  return false;
+}
+
+/****************************************************************************
+ * Name: sdmmc_dma_deinit
+ *
+ * Description:
+ *   Release DMA resources.
+ *
+ ****************************************************************************/
+
+static void sdmmc_dma_deinit(struct esp32p4_sdmmc_dev_s *priv)
+{
+  if (priv->dma_desc != NULL)
+    {
+      sdmmc_dma_stop(priv);
+      kmm_free(priv->dma_desc);
+      priv->dma_desc = NULL;
+    }
+}
+
+#endif /* CONFIG_ESP32P4_SDMMC_DMA */
+
 /****************************************************************************
  * NuttX sdio_dev_s Interface Implementation
  ****************************************************************************/
@@ -980,8 +1483,6 @@ static int sdmmc_reset_cmd(struct sdio_dev_s *dev)
 static int sdmmc_sendcmd(struct sdio_dev_s *dev, uint32_t cmd,
                           uint32_t arg)
 {
-  struct esp32p4_sdmmc_dev_s *priv = (struct esp32p4_sdmmc_dev_s *)dev;
-
   return sdmmc_send_cmd(cmd, arg, NULL);
 }
 
@@ -1096,6 +1597,18 @@ static int sdmmc_readwait(struct sdio_dev_s *dev)
 
 static int sdmmc_cancel(struct sdio_dev_s *dev)
 {
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  struct esp32p4_sdmmc_dev_s *priv = (struct esp32p4_sdmmc_dev_s *)dev;
+
+  /* Stop any in-progress DMA first */
+
+  if (priv->dma_active)
+    {
+      sdmmc_dma_stop(priv);
+      priv->dma_callback = NULL;
+    }
+#endif
+
   /* Reset the controller to cancel any pending transfer */
 
   sdmmc_reset();
@@ -1121,7 +1634,7 @@ static int sdmmc_dmapreflight(struct sdio_dev_s *dev,
                                const uint32_t *buffer, size_t buflen)
 {
   /* Check buffer alignment for DMA.
-   * The SDMMC DMA requires word-aligned buffers.
+   * The SDMMC IDMAC requires word-aligned buffers.
    */
 
   if (((uintptr_t)buffer & 3) != 0)
@@ -1139,18 +1652,19 @@ static int sdmmc_dmapreflight(struct sdio_dev_s *dev,
 static int sdmmc_dmasetup(struct sdio_dev_s *dev, uint32_t *buffer,
                            size_t buflen)
 {
-  /* Set up DMA for the transfer.
-   * In this simplified implementation, we use PIO (programmed I/O)
-   * instead of actual DMA.  A full implementation would configure
-   * the GDMA channel to transfer data to/from the SDMMC FIFO.
-   */
+  struct esp32p4_sdmmc_dev_s *priv = (struct esp32p4_sdmmc_dev_s *)dev;
+
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  /* Use the IDMAC DMA engine for the transfer */
+
+  sdmmc_dma_prepare(priv, buffer, buflen, 512);
+#else
+  /* PIO fallback: just program the byte/block count registers */
 
   REG_WRITE(SDMMC_BYTCNT_REG, buflen);
   REG_WRITE(SDMMC_BLKSIZ_REG, 512);
-
-  /* Enable DMA in the controller */
-
   REG_SET_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_DMA_ENABLE);
+#endif
 
   return OK;
 }
@@ -1163,11 +1677,19 @@ static void sdmmc_dmastart(struct sdio_dev_s *dev,
                             sdio_eventset_t eventset,
                             sdio_callback_t callback, void *arg)
 {
-  /* Start the DMA transfer.
-   * In this simplified implementation, the transfer is started
-   * by the sendcmd function.  A full implementation would start
-   * the GDMA transfer here.
-   */
+  struct esp32p4_sdmmc_dev_s *priv = (struct esp32p4_sdmmc_dev_s *)dev;
+
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  /* Save the callback information for the ISR */
+
+  priv->dma_eventset = eventset;
+  priv->dma_callback = callback;
+  priv->dma_cb_arg   = arg;
+
+  /* Kick the IDMAC to begin fetching descriptors */
+
+  sdmmc_dma_start(priv);
+#endif
 }
 
 /****************************************************************************
@@ -1176,9 +1698,14 @@ static void sdmmc_dmastart(struct sdio_dev_s *dev,
 
 static void sdmmc_dmastop(struct sdio_dev_s *dev)
 {
-  /* Stop DMA transfer */
+  struct esp32p4_sdmmc_dev_s *priv = (struct esp32p4_sdmmc_dev_s *)dev;
 
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  sdmmc_dma_stop(priv);
+  priv->dma_callback = NULL;
+#else
   REG_CLR_BIT(SDMMC_CTRL_REG, SDMMC_CTRL_DMA_ENABLE);
+#endif
 }
 
 /****************************************************************************
@@ -1196,15 +1723,48 @@ static sdio_eventset_t sdmmc_dmacapabilities(struct sdio_dev_s *dev)
 
 static bool sdmmc_dmadone(struct sdio_dev_s *dev)
 {
+  struct esp32p4_sdmmc_dev_s *priv = (struct esp32p4_sdmmc_dev_s *)dev;
   uint32_t status = REG_READ(SDMMC_RINTSTS_REG);
 
-  /* Check if data transfer is complete */
+  /* Check if data transfer is complete (host controller side) */
 
   if (status & SDMMC_INT_DATA_OVER)
     {
       REG_WRITE(SDMMC_RINTSTS_REG, SDMMC_INT_DATA_OVER);
+
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+      priv->dma_active = false;
+#endif
+
       return true;
     }
+
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  /* Also check the IDMAC completion status */
+
+  if (priv->dma_active)
+    {
+      uint32_t idsts = REG_READ(SDMMC_IDSTS_REG);
+
+      if (idsts & SDMMC_IDSTS_TI)
+        {
+          /* TX complete */
+
+          REG_WRITE(SDMMC_IDSTS_REG, SDMMC_IDSTS_TI);
+          priv->dma_active = false;
+          return true;
+        }
+
+      if (idsts & SDMMC_IDSTS_RI)
+        {
+          /* RX complete */
+
+          REG_WRITE(SDMMC_IDSTS_REG, SDMMC_IDSTS_RI);
+          priv->dma_active = false;
+          return true;
+        }
+    }
+#endif
 
   return false;
 }
@@ -1264,14 +1824,31 @@ struct sdio_dev_s *sdmmc_initialize(int slot)
 
   sdmmc_configure_pins();
 
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+  /* Initialize the IDMAC DMA engine */
+
+  sdmmc_dma_init(priv);
+#endif
+
   /* Perform SD card initialization sequence */
 
   ret = sdmmc_card_init_sequence(priv);
   if (ret < 0)
     {
       sderr("ERROR: SD card initialization failed: %d\n", ret);
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+      sdmmc_dma_deinit(priv);
+#endif
       return NULL;
     }
+
+  sdinfo("SDMMC initialized with %s mode\n",
+#ifdef CONFIG_ESP32P4_SDMMC_DMA
+         "DMA"
+#else
+         "PIO"
+#endif
+         );
 
   return &priv->dev;
 }

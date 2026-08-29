@@ -33,6 +33,14 @@
 #include "esp32p4-evb.h"
 #include "esp32p4_gpio.h"
 
+#ifdef CONFIG_ESP32P4_BLE
+#  include "esp32p4_ble.h"
+#endif
+
+#ifdef CONFIG_ESP32P4_WIFI
+#  include "esp32p4_wifi.h"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -110,32 +118,54 @@ int esp32p4_bringup(void)
 #endif /* CONFIG_DEV_GPIO */
 #endif /* CONFIG_ESP32P4_GPIO */
 
-#ifdef CONFIG_ESP32P4_SPI1
-  /* Register the SPI1 bus driver.
+#ifdef CONFIG_ESP32P4_SPI2
+  /* Register the SPI2 bus driver.
    *
-   * SPI1 is available on the ESP32-P4 and can be used to connect
-   * external SPI devices (sensors, displays, etc.).
-   *
-   * ret = esp32p4_spidev_register(1);
-   * if (ret < 0)
-   *   {
-   *     syslog(LOG_ERR, "ERROR: Failed to register SPI1: %d\n", ret);
-   *   }
+   * SPI2 is a general-purpose SPI controller on the ESP32-P4
+   * that can be used to connect external SPI devices (sensors,
+   * displays, EEPROMs, etc.).
    */
+
+  ret = esp32p4_spidev_register(2);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to register SPI2: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESP32P4_SPI3
+  /* Register the SPI3 bus driver. */
+
+  ret = esp32p4_spidev_register(3);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to register SPI3: %d\n", ret);
+    }
 #endif
 
 #ifdef CONFIG_ESP32P4_I2C0
   /* Register the I2C0 bus driver.
    *
-   * I2C0 is available on the ESP32-P4 and can be used to connect
-   * external I2C devices (sensors, EEPROMs, etc.).
-   *
-   * ret = esp32p4_i2cbus_register(0);
-   * if (ret < 0)
-   *   {
-   *     syslog(LOG_ERR, "ERROR: Failed to register I2C0: %d\n", ret);
-   *   }
+   * I2C0 is a high-performance I2C controller on the ESP32-P4
+   * that can be used to connect external I2C devices (sensors,
+   * EEPROMs, etc.).
    */
+
+  ret = esp32p4_i2cbus_register(0);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to register I2C0: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESP32P4_I2C1
+  /* Register the I2C1 bus driver. */
+
+  ret = esp32p4_i2cbus_register(1);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to register I2C1: %d\n", ret);
+    }
 #endif
 
 #ifdef CONFIG_ESP32P4_EVB_SDCARD
@@ -165,6 +195,43 @@ int esp32p4_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to initialize LCD: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESP32P4_WIFI
+  /* Initialize the WiFi driver.
+   *
+   * This initializes the ESP-Hosted WiFi interface via SDIO to
+   * the ESP32-C6 co-processor and registers the network device.
+   *
+   * NOTE: ESP32-P4 has no built-in WiFi.  An external WiFi
+   * co-processor (e.g., ESP32-C6) connected via SDIO is required.
+   */
+
+  ret = esp_wifi_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to initialize WiFi: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESP32P4_BLE
+  /* Initialize the BLE driver.
+   *
+   * This initializes the NimBLE (or Bluedroid) Bluetooth stack,
+   * configures GAP and GATT services, and starts the BLE host
+   * task.  The driver will begin advertising automatically once
+   * the stack is synced with the controller.
+   *
+   * NOTE: ESP32-P4 has no built-in Bluetooth radio.  An external
+   * BLE co-processor (e.g., ESP32-C6/H2) connected via HCI UART
+   * is required for BLE functionality.
+   */
+
+  ret = esp32p4_ble_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to initialize BLE: %d\n", ret);
     }
 #endif
 

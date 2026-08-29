@@ -21,8 +21,32 @@
 set(SRCS esp32p4_start.c esp32p4_irq.c esp32p4_clockconfig.c esp32p4_serial.c
          esp32p4_gpio.c esp32p4_timerisr.c esp32p4_allocateheap.c)
 
+if(CONFIG_ESP32P4_SPI2 OR CONFIG_ESP32P4_SPI3)
+  list(APPEND SRCS esp32p4_spi.c)
+endif()
+
+if(CONFIG_ESP32P4_I2C0 OR CONFIG_ESP32P4_I2C1)
+  list(APPEND SRCS esp32p4_i2c.c)
+endif()
+
 if(CONFIG_ESP32P4_MIPI_DSI)
   list(APPEND SRCS esp32p4_mipi_dsi.c)
+endif()
+
+if(CONFIG_ESP32P4_BLE)
+  list(APPEND SRCS esp32p4_ble.c)
+endif()
+
+if(CONFIG_ESP32P4_WIFI)
+  list(APPEND SRCS esp32p4_wifi.c)
+endif()
+
+if(CONFIG_ESP32P4_SDMMC)
+  list(APPEND SRCS esp32p4_sdmmc.c)
+endif()
+
+if(CONFIG_ESP32P4_PSRAM)
+  list(APPEND SRCS esp32p4_psram.c)
 endif()
 
 target_sources(arch PRIVATE ${SRCS})

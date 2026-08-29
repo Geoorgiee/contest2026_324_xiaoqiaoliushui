@@ -65,11 +65,18 @@
 
 #define DR_REG_CLKRST_BASE          0x60008000
 
-/* SPI Peripheral Base Addresses */
+/* SPI Peripheral Base Addresses
+ *
+ * SPI0/SPI1 are MSPI (Memory SPI) controllers used for flash/PSRAM.
+ * SPI2/SPI3 are GP-SPI (General Purpose SPI) controllers for external
+ * SPI devices.
+ */
 
 #define DR_REG_SPI0_BASE            0x60003000
 #define DR_REG_SPI1_BASE            0x60004000
 #define DR_REG_MSPI_BASE            0x60003000
+#define DR_REG_SPI2_BASE            0x60015000
+#define DR_REG_SPI3_BASE            0x60016000
 
 /* I2C Peripheral Base Addresses */
 

@@ -18,7 +18,8 @@
 #
 ############################################################################
 
-include risc-v/Make.defs
+include common/Make.defs
+include common/espressif/Make.defs
 
 # Specify our HEAD assembly file.  This will be linked as
 # the first object file, so it will appear at address 0
@@ -39,10 +40,26 @@ ifeq ($(CONFIG_ESP32P4_BLE),y)
 CHIP_CSRCS += esp32p4_ble.c
 endif
 
+ifneq ($(CONFIG_ESP32P4_SPI2)$(CONFIG_ESP32P4_SPI3),)
+CHIP_CSRCS += esp32p4_spi.c
+endif
+
+ifneq ($(CONFIG_ESP32P4_I2C0)$(CONFIG_ESP32P4_I2C1),)
+CHIP_CSRCS += esp32p4_i2c.c
+endif
+
 ifeq ($(CONFIG_ESP32P4_MIPI_DSI),y)
 CHIP_CSRCS += esp32p4_mipi_dsi.c
 endif
 
 ifeq ($(CONFIG_ESP32P4_SDMMC),y)
 CHIP_CSRCS += esp32p4_sdmmc.c
+endif
+
+ifeq ($(CONFIG_ESP32P4_WIFI),y)
+CHIP_CSRCS += esp32p4_wifi.c
+endif
+
+ifeq ($(CONFIG_ESP32P4_PSRAM),y)
+CHIP_CSRCS += esp32p4_psram.c
 endif

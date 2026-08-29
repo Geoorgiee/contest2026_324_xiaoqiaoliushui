@@ -217,25 +217,161 @@ config ESP32P4_LTO
 		Enable link-time optimization (LTO) for the build.
 		This can reduce code size but increases build time.
 
-comment "ESP32-P4 Peripheral Configuration"
+comment "ESP32-P4 SPI Configuration"
 
-config ESP32P4_SPI1
-	bool "SPI1 bus support"
+config ESP32P4_SPI2
+	bool "SPI2 bus support"
 	default n
+	select SPI
+	select SPI_EXCHANGE
 	---help---
-		Enable SPI1 bus driver.
+		Enable SPI2 (GP-SPI) bus driver for the ESP32-P4.
+		SPI2 is a general-purpose SPI controller that can be used
+		to connect external SPI devices (sensors, displays, etc.).
+
+config ESP32P4_SPI2_CLK_GPIO
+	int "SPI2 CLK GPIO pin"
+	default 12
+	range 0 53
+	depends on ESP32P4_SPI2
+	---help---
+		GPIO pin number for SPI2 clock output.
+
+config ESP32P4_SPI2_MISO_GPIO
+	int "SPI2 MISO GPIO pin"
+	default 13
+	range 0 53
+	depends on ESP32P4_SPI2
+	---help---
+		GPIO pin number for SPI2 MISO (Master In Slave Out).
+
+config ESP32P4_SPI2_MOSI_GPIO
+	int "SPI2 MOSI GPIO pin"
+	default 14
+	range 0 53
+	depends on ESP32P4_SPI2
+	---help---
+		GPIO pin number for SPI2 MOSI (Master Out Slave In).
+
+config ESP32P4_SPI2_CS0_GPIO
+	int "SPI2 CS0 GPIO pin"
+	default 11
+	range 0 53
+	depends on ESP32P4_SPI2
+	---help---
+		GPIO pin number for SPI2 chip select 0.
+
+config ESP32P4_SPI3
+	bool "SPI3 bus support"
+	default n
+	select SPI
+	select SPI_EXCHANGE
+	---help---
+		Enable SPI3 (GP-SPI) bus driver for the ESP32-P4.
+		SPI3 is a general-purpose SPI controller that can be used
+		to connect external SPI devices (sensors, displays, etc.).
+
+config ESP32P4_SPI3_CLK_GPIO
+	int "SPI3 CLK GPIO pin"
+	default 15
+	range 0 53
+	depends on ESP32P4_SPI3
+	---help---
+		GPIO pin number for SPI3 clock output.
+
+config ESP32P4_SPI3_MISO_GPIO
+	int "SPI3 MISO GPIO pin"
+	default 16
+	range 0 53
+	depends on ESP32P4_SPI3
+	---help---
+		GPIO pin number for SPI3 MISO (Master In Slave Out).
+
+config ESP32P4_SPI3_MOSI_GPIO
+	int "SPI3 MOSI GPIO pin"
+	default 17
+	range 0 53
+	depends on ESP32P4_SPI3
+	---help---
+		GPIO pin number for SPI3 MOSI (Master Out Slave In).
+
+config ESP32P4_SPI3_CS0_GPIO
+	int "SPI3 CS0 GPIO pin"
+	default 18
+	range 0 53
+	depends on ESP32P4_SPI3
+	---help---
+		GPIO pin number for SPI3 chip select 0.
+
+comment "ESP32-P4 I2C Configuration"
 
 config ESP32P4_I2C0
 	bool "I2C0 bus support"
 	default n
+	select I2C
+	select I2C_DRIVER
 	---help---
-		Enable I2C0 bus driver.
+		Enable I2C0 (HP I2C) bus driver for the ESP32-P4.
+		I2C0 is a high-performance I2C controller that supports
+		standard mode (100 kHz) and fast mode (400 kHz).
+
+config ESP32P4_I2C0_SCL_GPIO
+	int "I2C0 SCL GPIO pin"
+	default 8
+	range 0 53
+	depends on ESP32P4_I2C0
+	---help---
+		GPIO pin number for I2C0 SCL (clock) line.
+
+config ESP32P4_I2C0_SDA_GPIO
+	int "I2C0 SDA GPIO pin"
+	default 9
+	range 0 53
+	depends on ESP32P4_I2C0
+	---help---
+		GPIO pin number for I2C0 SDA (data) line.
+
+config ESP32P4_I2C0_FREQ
+	int "I2C0 frequency (Hz)"
+	default 100000
+	depends on ESP32P4_I2C0
+	---help---
+		I2C0 bus frequency in Hz.
+		Supported values: 100000 (standard), 400000 (fast).
 
 config ESP32P4_I2C1
 	bool "I2C1 bus support"
 	default n
+	select I2C
+	select I2C_DRIVER
 	---help---
-		Enable I2C1 bus driver.
+		Enable I2C1 (HP I2C) bus driver for the ESP32-P4.
+		I2C1 is a high-performance I2C controller that supports
+		standard mode (100 kHz) and fast mode (400 kHz).
+
+config ESP32P4_I2C1_SCL_GPIO
+	int "I2C1 SCL GPIO pin"
+	default 10
+	range 0 53
+	depends on ESP32P4_I2C1
+	---help---
+		GPIO pin number for I2C1 SCL (clock) line.
+
+config ESP32P4_I2C1_SDA_GPIO
+	int "I2C1 SDA GPIO pin"
+	default 11
+	range 0 53
+	depends on ESP32P4_I2C1
+	---help---
+		GPIO pin number for I2C1 SDA (data) line.
+
+config ESP32P4_I2C1_FREQ
+	int "I2C1 frequency (Hz)"
+	default 100000
+	depends on ESP32P4_I2C1
+	---help---
+		I2C1 bus frequency in Hz.
+		Supported values: 100000 (standard), 400000 (fast).
 
 comment "ESP32-P4 BLE Configuration"
 
@@ -340,6 +476,34 @@ config ESP32P4_SDMMC_FREQ
 		Default is 40 MHz for reliable operation.
 
 endif # ESP32P4_SDMMC
+
+comment "ESP32-P4 WiFi Configuration"
+
+config ESP32P4_WIFI
+	bool "WiFi support (ESP-Hosted via SDIO)"
+	default n
+	depends on ESP_IDF
+	select NET
+	select NETDEVICES
+	---help---
+		Enable WiFi support for the ESP32-P4 via the ESP-Hosted
+		protocol. The ESP32-P4 has no built-in WiFi radio; this
+		driver communicates with an ESP32-C6 co-processor running
+		WiFi firmware over a 4-bit SDIO bus.
+
+		If unsure, say N.
+
+if ESP32P4_WIFI
+
+config ESP32P4_WIFI_SDIO_FREQ
+	int "SDIO bus frequency for WiFi (Hz)"
+	default 20000000
+	---help---
+		SDIO bus frequency in Hz for communication with the
+		WiFi co-processor. Default is 20 MHz. Lower values
+		may improve stability on noisy boards.
+
+endif # ESP32P4_WIFI
 
 comment "ESP32-P4 MIPI-DSI Display Configuration"
 
