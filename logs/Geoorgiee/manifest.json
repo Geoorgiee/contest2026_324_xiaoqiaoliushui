@@ -3,7 +3,7 @@
   "team_id": "contest2026_324_xiaoqiaoliushui",
   "github_login": "Geoorgiee",
   "generator": "claude-code-collector@1.3.0",
-  "updated_at": "2026-08-30T14:03:38.177Z",
+  "updated_at": "2026-08-30T14:08:52.657Z",
   "sessions": [
     {
       "session_id": "2e1a5e6c-076c-4113-aeaa-e5fabd708626",
@@ -101,9 +101,9 @@
       "session_id": "3a2dc609-1d83-4a04-940e-95cfb5f0f9a1",
       "tool": "claude-code",
       "started_at": "2026-08-30T14:03:38.175Z",
-      "last_event_at": "2026-08-30T14:03:38.175Z",
-      "event_count": 240,
-      "raw_event_count": 313,
+      "last_event_at": "2026-08-30T14:08:52.653Z",
+      "event_count": 258,
+      "raw_event_count": 340,
       "file_path": "logs/Geoorgiee/2026-08-30/claude-code__3a2dc609-1d83-4a04-940e-95cfb5f0f9a1.jsonl",
       "collection_mode": "cli",
       "health": "ok",
