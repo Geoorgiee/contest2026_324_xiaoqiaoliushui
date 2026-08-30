@@ -69,7 +69,7 @@ ARCHOPTIMIZATION = -Os -fno-reorder-functions -ffunction-sections -fdata-section
 
 # Architecture-specific include paths
 
-ARCHINCLUDES = -I$(TOPDIR)/arch/risc-v/src/common -I$(TOPDIR)/arch/risc-v/src/rv32im
+ARCHINCLUDES = -I$(TOPDIR)/include -I$(TOPDIR)/arch/risc-v/src/common -I$(TOPDIR)/arch/risc-v/src/rv32im
 
 # Architecture-specific defines
 

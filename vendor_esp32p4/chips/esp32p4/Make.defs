@@ -19,7 +19,9 @@
 ############################################################################
 
 include common/Make.defs
-include common/espressif/Make.defs
+# Note: We do NOT include common/espressif/Make.defs because the vendor code
+# has its own implementations and doesn't need the esp-hal-3rdparty repository.
+# The hal_esp32p4.mk file provides the necessary definitions.
 
 # Specify our HEAD assembly file.  This will be linked as
 # the first object file, so it will appear at address 0
@@ -63,3 +65,7 @@ endif
 ifeq ($(CONFIG_ESP32P4_PSRAM),y)
 CHIP_CSRCS += esp32p4_psram.c
 endif
+
+# Include paths for vendor code
+INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)include
+INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)hardware

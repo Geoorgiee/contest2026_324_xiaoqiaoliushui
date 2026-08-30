@@ -1,22 +1,44 @@
-make: Entering directory '/home/geo/contest2026_324_xiaoqiaoliushui/nuttx'
-CP: arch/dummy/Kconfig to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4/Kconfig
-CP: boards/dummy/Kconfig to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-evb/Kconfig
-LN: include/arch to arch/risc-v/include
-LN: drivers/platform to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/drivers/dummy
-LN: platform/board to /home/geo/contest2026_324_xiaoqiaoliushui/apps/platform/dummy
-LN: include/arch/chip to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4/include
-/home/geo/contest2026_324_xiaoqiaoliushui/nuttx/tools/link.sh /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4/include include/arch/chip
-LN: arch/risc-v/src/chip to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/chips/esp32p4
-LN: arch/risc-v/src/board to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-evb/src
-Create version.h
-LN: include/arch/board to /home/geo/contest2026_324_xiaoqiaoliushui/nuttx/../vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-evb/include
-touch .dirlinks
-chip/Make.defs:21: risc-v/Make.defs: No such file or directory
-make[1]: *** No rule to make target 'risc-v/Make.defs'.  Stop.
-make: *** [tools/Unix.mk:472: arch/risc-v/src/.context] Error 2
+make: Entering directory '/home/geo/openvela/nuttx'
+In file included from /home/geo/openvela/nuttx/include/sys/types.h:34,
+                 from /home/geo/openvela/nuttx/include/time.h:33,
+                 from ./clock/clock_settime.c:29:
+/home/geo/openvela/nuttx/include/stdint.h:62:37: error: missing binary operator before token "("
+   62 | #define UINT32_MAX          UINT32_C(4294967295)
+      |                                     ^
+/home/geo/openvela/nuttx/include/nuttx/lib/math32.h:50:19: note: in expansion of macro 'UINT32_MAX'
+   50 | #if UINTPTR_MAX > UINT32_MAX
+      |                   ^~~~~~~~~~
+/home/geo/openvela/nuttx/include/stdint.h:62:37: error: missing binary operator before token "("
+   62 | #define UINT32_MAX          UINT32_C(4294967295)
+      |                                     ^
+/home/geo/openvela/nuttx/include/nuttx/wdog.h:71:20: note: in expansion of macro 'UINT32_MAX'
+   71 | #if UINTPTR_MAX >= UINT32_MAX
+      |                    ^~~~~~~~~~
+ERROR: riscv-none-elf-gcc failed: 1
+       command: riscv-none-elf-gcc -MT ./clock_settime.o  -M '-fno-builtin' '-fno-strict-aliasing' '-Os' '-fno-reorder-functions' '-ffunction-sections' '-fdata-sections' '-march=rv32imafc' '-mabi=ilp32f' '-mcmodel=medlow' '-I/home/geo/openvela/nuttx/include' '-I/home/geo/openvela/nuttx/arch/risc-v/src/common' '-I/home/geo/openvela/nuttx/arch/risc-v/src/rv32im' '-D__NuttX__' '-D__riscv' '-D__ESP32P4__' '-D__KERNEL__' '-Wno-cpp' '-Wno-deprecated-declarations' '-pipe' '-Werror=return-type' '-Werror' '-DIRQ_WORK_SECTION=CONFIG_IRQ_WORK_SECTION' '-I' '/home/geo/openvela/nuttx/sched' ./clock/clock_settime.c
+make[2]: *** [/home/geo/openvela/nuttx/tools/Config.mk:233: clock_settime.ddc] Error 1
+make[1]: *** [Makefile:73: .depend] Error 2
+make: *** [tools/Unix.mk:660: pass2dep] Error 2
 make: *** Waiting for unfinished jobs....
-LN: platform/board to /home/geo/contest2026_324_xiaoqiaoliushui/apps/platform/dummy
-Register: sh
-Generating unified Rust library from registered crates...
-No valid Rust crates found to build
-make: Leaving directory '/home/geo/contest2026_324_xiaoqiaoliushui/nuttx'
+In file included from /home/geo/openvela/nuttx/include/sys/types.h:34,
+                 from /home/geo/openvela/nuttx/include/dirent.h:32,
+                 from ./dirent/lib_telldir.c:27:
+/home/geo/openvela/nuttx/include/stdint.h:62:37: error: missing binary operator before token "("
+   62 | #define UINT32_MAX          UINT32_C(4294967295)
+      |                                     ^
+/home/geo/openvela/nuttx/include/nuttx/lib/math32.h:50:19: note: in expansion of macro 'UINT32_MAX'
+   50 | #if UINTPTR_MAX > UINT32_MAX
+      |                   ^~~~~~~~~~
+/home/geo/openvela/nuttx/include/stdint.h:62:37: error: missing binary operator before token "("
+   62 | #define UINT32_MAX          UINT32_C(4294967295)
+      |                                     ^
+/home/geo/openvela/nuttx/include/nuttx/wdog.h:71:20: note: in expansion of macro 'UINT32_MAX'
+   71 | #if UINTPTR_MAX >= UINT32_MAX
+      |                    ^~~~~~~~~~
+ERROR: riscv-none-elf-gcc failed: 1
+       command: riscv-none-elf-gcc -MT bin/lib_telldir.o  -M '-fno-builtin' '-fno-strict-aliasing' '-Os' '-fno-reorder-functions' '-ffunction-sections' '-fdata-sections' '-march=rv32imafc' '-mabi=ilp32f' '-mcmodel=medlow' '-I/home/geo/openvela/nuttx/include' '-I/home/geo/openvela/nuttx/arch/risc-v/src/common' '-I/home/geo/openvela/nuttx/arch/risc-v/src/rv32im' '-D__NuttX__' '-D__riscv' '-D__ESP32P4__' '-Wno-cpp' '-Wno-deprecated-declarations' '-pipe' '-Werror=return-type' '-Werror' '-I' '/home/geo/openvela/nuttx/libs/libc' ./dirent/lib_telldir.c
+make[2]: *** [/home/geo/openvela/nuttx/tools/Config.mk:233: lib_telldir.ddc] Error 1
+make[2]: *** Waiting for unfinished jobs....
+make[1]: *** [Makefile:203: .depend] Error 2
+make: *** [tools/Unix.mk:655: pass1dep] Error 2
+make: Leaving directory '/home/geo/openvela/nuttx'
