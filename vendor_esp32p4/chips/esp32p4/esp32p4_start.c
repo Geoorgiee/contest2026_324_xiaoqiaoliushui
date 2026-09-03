@@ -67,7 +67,7 @@ extern uint8_t _ebss[];
  * address.
  */
 
-const uintptr_t g_idle_topstack = HEAP_BASE;
+uintptr_t g_idle_topstack = HEAP_BASE;
 
 /****************************************************************************
  * Private Functions

@@ -14,11 +14,14 @@ choice
 config ARCH_CHIP_ESP32P4
 	bool "ESP32-P4"
 	select ARCH_RISCV
+	select ARCH_RV32
 	select RISCV_ISA_M
 	select RISCV_ISA_A
 	select RISCV_ISA_C
 	select RISCV_ISA_F
 	select ARCH_HAVE_MPU
+	select ONESHOT
+	select ONESHOT_COUNT
 
 endchoice
 
@@ -663,7 +666,7 @@ endif # ESP32P4_LCD_PANEL
 endif # ESP32P4_MIPI_DSI
 
 # Include TinyML configuration
-source "Kconfig.tinyml"
+source "arch/dummy/Kconfig.tinyml"
 
 endif # ARCH_CHIP_ESP32P4
 

@@ -27,6 +27,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/irq.h>
+#include <nuttx/spinlock.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -143,15 +144,10 @@
  * Inline Helper Functions
  ****************************************************************************/
 
-static inline void modifyreg32(unsigned int addr, uint32_t clearbits,
-                                uint32_t setbits)
-{
-  irqstate_t flags = enter_critical_section();
-  uint32_t val = REG_READ(addr);
-  val &= ~clearbits;
-  val |= setbits;
-  REG_WRITE(addr, val);
-  leave_critical_section(flags);
-}
+/* modifyreg32 is provided by NuttX common code (riscv_internal.h).
+ * The vendor header previously defined a static inline version with
+ * critical-section wrapping, but this conflicts with the extern
+ * declaration in riscv_internal.h.  Use the NuttX-provided version.
+ */
 
 #endif /* __VENDOR_ESPRESSIF_CHIPS_ESP32P4_INCLUDE_HARDWARE_ESP32P4_SOC_H */

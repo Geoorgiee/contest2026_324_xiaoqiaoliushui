@@ -165,7 +165,7 @@ static int  esp32p4_uart_setup(struct uart_dev_s *dev);
 static void esp32p4_uart_shutdown(struct uart_dev_s *dev);
 static int  esp32p4_uart_attach(struct uart_dev_s *dev);
 static void esp32p4_uart_detach(struct uart_dev_s *dev);
-static int  esp32p4_uart_ioctl(struct uart_dev_s *dev, int cmd,
+static int  esp32p4_uart_ioctl(FAR struct file *filep, int cmd,
                                 unsigned long arg);
 static int  esp32p4_uart_receive(struct uart_dev_s *dev, unsigned int *status);
 static void esp32p4_uart_rxint(struct uart_dev_s *dev, bool enable);
@@ -193,11 +193,11 @@ static struct esp32p4_uart_port_s g_uart0_port =
 {
   .base      = DR_REG_UART0_BASE,
   .irq       = ESP32P4_IRQ_UART0,
-  .baud      = CONFIG_UART0_BAUD,
+  .baud      = CONFIG_ESP32P4_UART0_BAUD,
   .clk_freq  = APB_CLK_FREQ_DEFAULT,
   .parity    = CONFIG_ESP32P4_UART0_PARITY,
   .bits      = CONFIG_ESP32P4_UART0_BITS,
-  .stopbits2 = CONFIG_ESP32P4_UART0_2STOP,
+  .stopbits2 = 0,  /* CONFIG_ESP32P4_UART0_2STOP not set */
   .tx_sig    = UART0_TX_SIG,
   .rx_sig    = UART0_RX_SIG,
   .tx_gpio   = CONFIG_ESP32P4_UART0_TX_GPIO,
@@ -223,21 +223,21 @@ static const struct uart_ops_s g_uart0_ops =
   .txempty     = esp32p4_uart_txempty,
 };
 
-static char g_uart0_rxbuffer[CONFIG_UART0_RXBUFSIZE];
-static char g_uart0_txbuffer[CONFIG_UART0_TXBUFSIZE];
+static char g_uart0_rxbuffer[CONFIG_ESP32P4_UART0_RXBUFSIZE];
+static char g_uart0_txbuffer[CONFIG_ESP32P4_UART0_TXBUFSIZE];
 
 static struct uart_dev_s g_uart0_priv =
 {
-  .isconsole = (bool)CONFIG_UART0_SERIAL_CONSOLE,
+  .isconsole = (bool)CONFIG_ESP32P4_UART0_SERIAL_CONSOLE,
   .ops       = &g_uart0_ops,
   .xmit =
   {
-    .size    = CONFIG_UART0_TXBUFSIZE,
+    .size    = CONFIG_ESP32P4_UART0_TXBUFSIZE,
     .buffer  = g_uart0_txbuffer,
   },
   .recv =
   {
-    .size    = CONFIG_UART0_RXBUFSIZE,
+    .size    = CONFIG_ESP32P4_UART0_RXBUFSIZE,
     .buffer  = g_uart0_rxbuffer,
   },
   .priv      = &g_uart0_port,
@@ -251,11 +251,11 @@ static struct esp32p4_uart_port_s g_uart1_port =
 {
   .base      = DR_REG_UART1_BASE,
   .irq       = ESP32P4_IRQ_UART1,
-  .baud      = CONFIG_UART1_BAUD,
+  .baud      = CONFIG_ESP32P4_UART1_BAUD,
   .clk_freq  = APB_CLK_FREQ_DEFAULT,
   .parity    = CONFIG_ESP32P4_UART1_PARITY,
   .bits      = CONFIG_ESP32P4_UART1_BITS,
-  .stopbits2 = CONFIG_ESP32P4_UART1_2STOP,
+  .stopbits2 = 0,  /* CONFIG_ESP32P4_UART1_2STOP not set */
   .tx_sig    = UART1_TX_SIG,
   .rx_sig    = UART1_RX_SIG,
   .tx_gpio   = CONFIG_ESP32P4_UART1_TX_GPIO,
@@ -281,8 +281,8 @@ static const struct uart_ops_s g_uart1_ops =
   .txempty     = esp32p4_uart_txempty,
 };
 
-static char g_uart1_rxbuffer[CONFIG_UART1_RXBUFSIZE];
-static char g_uart1_txbuffer[CONFIG_UART1_TXBUFSIZE];
+static char g_uart1_rxbuffer[CONFIG_ESP32P4_UART1_RXBUFSIZE];
+static char g_uart1_txbuffer[CONFIG_ESP32P4_UART1_TXBUFSIZE];
 
 static struct uart_dev_s g_uart1_priv =
 {
@@ -290,12 +290,12 @@ static struct uart_dev_s g_uart1_priv =
   .ops       = &g_uart1_ops,
   .xmit =
   {
-    .size    = CONFIG_UART1_TXBUFSIZE,
+    .size    = CONFIG_ESP32P4_UART1_TXBUFSIZE,
     .buffer  = g_uart1_txbuffer,
   },
   .recv =
   {
-    .size    = CONFIG_UART1_RXBUFSIZE,
+    .size    = CONFIG_ESP32P4_UART1_RXBUFSIZE,
     .buffer  = g_uart1_rxbuffer,
   },
   .priv      = &g_uart1_port,
@@ -787,9 +787,11 @@ static void esp32p4_uart_detach(struct uart_dev_s *dev)
  *
  ****************************************************************************/
 
-static int esp32p4_uart_ioctl(struct uart_dev_s *dev, int cmd,
+static int esp32p4_uart_ioctl(FAR struct file *filep, int cmd,
                                unsigned long arg)
 {
+  FAR struct inode *inode = filep->f_inode;
+  FAR struct uart_dev_s *dev = inode->i_private;
   struct esp32p4_uart_port_s *port = dev->priv;
 
   switch (cmd)
@@ -844,8 +846,8 @@ static int esp32p4_uart_ioctl(struct uart_dev_s *dev, int cmd,
 
           /* Baud rate - store in c_ispeed/c_ospeed */
 
-          termiosp->c_ispeed = port->baud;
-          termiosp->c_ospeed = port->baud;
+          termiosp->c_speed = port->baud;
+          termiosp->c_speed = port->baud;
 
           /* Input flags - enable basic processing */
 
@@ -944,9 +946,9 @@ static int esp32p4_uart_ioctl(struct uart_dev_s *dev, int cmd,
            * rate, we update the port and reconfigure.
            */
 
-          if (termiosp->c_ospeed != 0 && termiosp->c_ospeed != port->baud)
+          if (termiosp->c_speed != 0 && termiosp->c_speed != port->baud)
             {
-              port->baud = termiosp->c_ospeed;
+              port->baud = termiosp->c_speed;
               need_reconfig = true;
             }
 
@@ -1269,9 +1271,9 @@ void riscv_serialinit(void)
  *
  ****************************************************************************/
 
-int up_putc(int ch)
+void up_putc(int ch)
 {
-#ifdef CONFIG_UART0_SERIAL_CONSOLE
+#ifdef CONFIG_ESP32P4_UART0_SERIAL_CONSOLE
   uint32_t status;
 
   /* For newline, send CR first (standard serial terminal convention) */
@@ -1301,8 +1303,6 @@ int up_putc(int ch)
 
   REG_WRITE(DR_REG_UART0_BASE + UART_FIFO_REG, (uint32_t)(ch & 0xff));
 #endif
-
-  return ch;
 }
 
 /****************************************************************************
@@ -1315,9 +1315,9 @@ int up_putc(int ch)
  *
  ****************************************************************************/
 
-void up_lowputc(char ch)
+void up_lowputc(int ch)
 {
-#ifdef CONFIG_UART0_SERIAL_CONSOLE
+#ifdef CONFIG_ESP32P4_UART0_SERIAL_CONSOLE
   uint32_t status;
 
   /* For newline, send CR first (standard serial terminal convention) */

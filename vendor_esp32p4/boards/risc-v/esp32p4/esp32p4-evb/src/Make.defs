@@ -20,9 +20,18 @@
 
 include $(TOPDIR)/Make.defs
 
+# Add chip include paths for board source files
+CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)chip$(DELIM)include
+CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)chip$(DELIM)hardware
+CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)chip
+
 # Board-level C source files
 
 CSRCS = esp32p4_bringup.c esp32p4_boot.c
+
+ifeq ($(CONFIG_ETC_ROMFS),y)
+CSRCS += etc_romfs.c
+endif
 
 ifeq ($(CONFIG_ESP32P4_EVB_SDCARD),y)
 CSRCS += esp32p4_sdcard.c

@@ -479,7 +479,16 @@ int esp32p4_config_gpio(int gpio, int mode)
 
   DEBUGASSERT(gpio >= 0 && gpio < ESP32P4_GPIO_COUNT);
 
-  switch (mode)
+  /* The 'mode' parameter encodes both direction and interrupt type.
+   * Bits 0-3: direction (GPIO_INPUT, GPIO_OUTPUT, etc.)
+   * Bits 4-7: interrupt type (GPIO_INTR_*)
+   * This avoids the overlapping enum values issue.
+   */
+
+  int direction = mode & 0x0f;
+  int intr = (mode >> 4) & 0x0f;
+
+  switch (direction)
     {
       case GPIO_OUTPUT:
         output_en = true;
@@ -499,18 +508,15 @@ int esp32p4_config_gpio(int gpio, int mode)
         pulldown   = true;
         break;
 
-      case GPIO_INTR_POSEDGE:
-      case GPIO_INTR_NEGEDGE:
-      case GPIO_INTR_ANYEDGE:
-      case GPIO_INTR_LOW_LEVEL:
-      case GPIO_INTR_HIGH_LEVEL:
-        input_en  = true;
-        intr_type = mode;
-        break;
-
       default:
-        gpioerr("ERROR: Invalid GPIO mode %d for GPIO %d\n", mode, gpio);
+        gpioerr("ERROR: Invalid GPIO direction %d for GPIO %d\n",
+                direction, gpio);
         return -EINVAL;
+    }
+
+  if (intr != 0)
+    {
+      intr_type = intr;
     }
 
   /* Step 1: Configure IO MUX

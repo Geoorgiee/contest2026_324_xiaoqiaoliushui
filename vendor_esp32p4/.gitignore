@@ -1,0 +1,25 @@
+# Build artifacts
+*.o
+*.a
+*.d
+*.dep
+.depend
+Make.dep
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.bak

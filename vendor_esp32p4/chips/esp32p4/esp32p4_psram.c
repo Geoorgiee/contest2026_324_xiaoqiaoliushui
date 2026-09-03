@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <malloc.h>
 
+#include "riscv_internal.h"
 #include "chip.h"
 #include "esp32p4_psram.h"
 #include "hardware/esp32p4_mspi.h"

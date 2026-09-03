@@ -74,6 +74,30 @@ extern const uintptr_t g_idle_topstack;
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: riscv_addregion
+ *
+ * Description:
+ *   This function is called during architecture initialization to add
+ *   additional memory regions to the heap.  For ESP32-P4, this adds
+ *   PSRAM as an additional heap region when available.
+ *
+ ****************************************************************************/
+
+void riscv_addregion(void)
+{
+#ifdef CONFIG_ESP32P4_PSRAM
+  /* Add PSRAM as an additional heap region if available */
+
+  if (ESP32P4_PSRAM_END > ESP32P4_PSRAM_START)
+    {
+      mm_addregion(g_mmheap,
+                   (FAR void *)ESP32P4_PSRAM_START,
+                   ESP32P4_PSRAM_END - ESP32P4_PSRAM_START);
+    }
+#endif
+}
+
+/****************************************************************************
  * Name: up_allocate_heap
  *
  * Description:

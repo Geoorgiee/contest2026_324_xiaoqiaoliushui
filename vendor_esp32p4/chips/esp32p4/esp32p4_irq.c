@@ -31,6 +31,7 @@
 #include <nuttx/board.h>
 
 #include <arch/irq.h>
+#include <arch/csr.h>
 
 #include "riscv_internal.h"
 #include "hardware/esp32p4_plic.h"
@@ -51,14 +52,6 @@
  */
 
 /****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/* Interrupt handler table - indexed by IRQ number */
-
-static xcpt_t g_irqvector[NR_IRQS];
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -74,7 +67,7 @@ static xcpt_t g_irqvector[NR_IRQS];
  *   1. Disable all PLIC interrupt sources
  *   2. Set all source priorities to 0 (disabled)
  *   3. Set the Hart threshold to 0 (all priorities accepted)
- *   4. Attach the default exception handlers
+ *   4. Attach the default exception handlers (done by common code)
  *   5. Enable the timer interrupt for system tick
  *   6. Enable global interrupts
  *
@@ -82,7 +75,6 @@ static xcpt_t g_irqvector[NR_IRQS];
 
 void up_irqinitialize(void)
 {
-  int i;
   int irq;
 
   /* Step 1 & 2: Disable all interrupts and set priorities to 0.
@@ -109,14 +101,24 @@ void up_irqinitialize(void)
 
   plic_set_threshold(PLIC_HART0_M, 0);
 
-  /* Step 4: Initialize the interrupt vector table.
-   * All entries point to the default handler initially.
+  /* Step 4: Attach default exception handlers.
+   * The common NuttX code handles irq_attach and g_irqvector
+   * initialization via irq_initialize(). We only need to set up
+   * the PLIC hardware here.
    */
 
-  for (i = 0; i < NR_IRQS; i++)
-    {
-      g_irqvector[i] = irq_unexpected_isr;
-    }
+#ifdef CONFIG_ARCH_MINIMAL_VECTORTABLE
+  /* If using minimal vector table, attach the default handlers
+   * for the exceptions we care about.
+   */
+
+  irq_attach(RISCV_IRQ_IAMISALIGNED, riscv_exception, NULL);
+  irq_attach(RISCV_IRQ_IAFAULT, riscv_exception, NULL);
+  irq_attach(RISCV_IRQ_IINSTRUCTION, riscv_exception, NULL);
+  irq_attach(RISCV_IRQ_BPOINT, riscv_exception, NULL);
+  irq_attach(RISCV_IRQ_LAFAULT, riscv_exception, NULL);
+  irq_attach(RISCV_IRQ_SAFAULT, riscv_exception, NULL);
+#endif
 
   /* Step 5: Attach and enable the timer interrupt.
    * The system tick timer (HP Timer 0) will generate periodic interrupts.
@@ -156,8 +158,6 @@ void up_irqinitialize(void)
 void up_enable_irq(int irq)
 {
   int context = PLIC_HART0_M;
-  unsigned int addr;
-  uint32_t bit;
 
   DEBUGASSERT(irq >= ESP32P4_IRQ_FIRST && irq < NR_IRQS);
 
@@ -207,24 +207,27 @@ void up_disable_irq(int irq)
 }
 
 /****************************************************************************
- * Name: riscv_ack_irq
+ * Name: up_irq_enable
  *
  * Description:
- *   Acknowledge the IRQ by reading the PLIC claim register.
- *   This tells the PLIC that we are servicing the interrupt.
+ *   Enable interrupts globally.
  *
  * Input Parameters:
- *   irq - The IRQ number being acknowledged
+ *   None.
+ *
+ * Returned Value:
+ *   The interrupt state prior to enabling interrupts.
  *
  ****************************************************************************/
 
-void riscv_ack_irq(int irq)
+irqstate_t up_irq_enable(void)
 {
-  /* The claim register has already been read in riscv_dispatch_irq to
-   * determine which interrupt to service. The acknowledge is implicit
-   * when the claim register is read. The interrupt will be completed
-   * when we write back to the claim register after servicing.
-   */
+  irqstate_t flags;
+
+  /* Read mstatus & set machine interrupt enable (MIE) in mstatus */
+
+  flags = READ_AND_SET_CSR(CSR_MSTATUS, MSTATUS_MIE);
+  return flags;
 }
 
 /****************************************************************************
@@ -238,9 +241,9 @@ void riscv_ack_irq(int irq)
  *   The dispatch sequence is:
  *   1. Read the PLIC claim register to get the highest-priority pending
  *      interrupt source number.
- *   2. Look up the handler in g_irqvector[].
- *   3. Call the handler.
- *   4. Write the source number back to the claim register (complete).
+ *   2. Call riscv_doirq() which handles the common NuttX IRQ dispatch
+ *      (including g_irqvector lookup, statistics, etc.)
+ *   3. Write the source number back to the claim register (complete).
  *
  * Input Parameters:
  *   mcause - The RISC-V mcause CSR value
@@ -248,7 +251,7 @@ void riscv_ack_irq(int irq)
  *
  ****************************************************************************/
 
-void riscv_dispatch_irq(uintptr_t mcause, uintptr_t *regs)
+void riscv_dispatch_irq(uintreg_t mcause, uintreg_t *regs)
 {
   int irq;
 
@@ -256,13 +259,14 @@ void riscv_dispatch_irq(uintptr_t mcause, uintptr_t *regs)
    * interrupt source for Hart 0 M-mode.
    */
 
-  irq = plic_claim(PLIC_HART0_M);
-
-  if (irq > 0 && irq < NR_IRQS)
+  while ((irq = plic_claim(PLIC_HART0_M)) > 0)
     {
-      /* Dispatch to the registered handler */
+      /* Dispatch through the common NuttX IRQ handler.
+       * riscv_doirq handles g_irqvector lookup, interrupt statistics,
+       * and context switching.
+       */
 
-      g_irqvector[irq](irq, regs, NULL);
+      regs = riscv_doirq(irq + RISCV_IRQ_ASYNC, regs);
 
       /* Complete the interrupt by writing back the source number.
        * This tells the PLIC that we are done servicing this interrupt
@@ -271,45 +275,4 @@ void riscv_dispatch_irq(uintptr_t mcause, uintptr_t *regs)
 
       plic_complete(PLIC_HART0_M, irq);
     }
-  else if (irq == 0)
-    {
-      /* Spurious interrupt - no source is pending.
-       * This can happen if the interrupt was already cleared before
-       * we read the claim register.
-       */
-    }
-}
-
-/****************************************************************************
- * Name: irq_attach
- *
- * Description:
- *   Attach an interrupt handler to the specified IRQ number.
- *   This is the standard NuttX interface for registering interrupt
- *   handlers.
- *
- * Input Parameters:
- *   irq     - The IRQ number to attach the handler to
- *   isr     - The interrupt service routine
- *   context - Opaque context pointer passed to the ISR
- *
- * Returned Value:
- *   The previous handler, or NULL if there was no previous handler.
- *
- ****************************************************************************/
-
-xcpt_t irq_attach(int irq, xcpt_t isr, void *context)
-{
-  xcpt_t oldhandler;
-
-  DEBUGASSERT(irq >= 0 && irq < NR_IRQS);
-
-  /* Save the old handler and install the new one */
-
-  irqstate_t flags = enter_critical_section();
-  oldhandler = g_irqvector[irq];
-  g_irqvector[irq] = isr;
-  leave_critical_section(flags);
-
-  return oldhandler;
 }

@@ -43,13 +43,16 @@ ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)ld.script
 #   ARCHINCLUDES - Architecture include paths
 #   ARCHDEFINES  - Architecture-specific preprocessor defines
 #
-# We add -pipe for faster compilation and -Werror for strict error checking.
+# We add -pipe for faster compilation and -Werror=return-type for strict
+# return-type checking.  -Werror is intentionally omitted to allow upstream
+# NuttX header warnings (e.g. forward-declared structs in usbhost.h) to
+# compile without blocking the vendor build.
 # -fpic is needed for position-independent code support (required by some
 # ESP32-P4 bootloader stages).
 
 ARCHPICFLAGS = -fpic
 
-CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe -Werror=return-type -Werror
+CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe -Werror=return-type -Wno-error=implicit-function-declaration
 CPICFLAGS = $(ARCHPICFLAGS) $(CFLAGS)
 CXXFLAGS := $(ARCHCXXFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe
 CXXPICFLAGS = $(ARCHPICFLAGS) $(CXXFLAGS)

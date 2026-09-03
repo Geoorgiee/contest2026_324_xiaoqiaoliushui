@@ -37,6 +37,7 @@ CROSSDEV = riscv-none-elf-
 
 CC = $(CROSSDEV)gcc
 CXX = $(CROSSDEV)g++
+CPP = $(CROSSDEV)gcc -E -P -x c
 AS = $(CROSSDEV)gcc -x assembler-with-cpp
 AR = $(CROSSDEV)ar rcs
 OBJCOPY = $(CROSSDEV)objcopy
@@ -52,7 +53,7 @@ OBJCOPY = $(CROSSDEV)objcopy
 # -mabi=ilp32f      : 32-bit integer ABI with hardware float calling convention
 # -mcmodel=medlow   : Medium-low code model (addresses in lower 2GB)
 
-ARCHCPUFLAGS = -march=rv32imafc -mabi=ilp32f -mcmodel=medlow
+ARCHCPUFLAGS = -march=rv32imafc_zifencei -mabi=ilp32f -mcmodel=medlow
 
 # Architecture-specific C flags
 
@@ -69,7 +70,7 @@ ARCHOPTIMIZATION = -Os -fno-reorder-functions -ffunction-sections -fdata-section
 
 # Architecture-specific include paths
 
-ARCHINCLUDES = -I$(TOPDIR)/include -I$(TOPDIR)/arch/risc-v/src/common -I$(TOPDIR)/arch/risc-v/src/rv32im
+ARCHINCLUDES = -I$(TOPDIR)/include -I$(TOPDIR)/arch/risc-v/src/common -I$(TOPDIR)/arch/risc-v/src/rv32im -I$(TOPDIR)/arch/risc-v/src/chip/include -I$(TOPDIR)/arch/risc-v/src/chip/hardware
 
 # Architecture-specific defines
 
@@ -77,5 +78,5 @@ ARCHDEFINES = -D__NuttX__ -D__riscv -D__ESP32P4__
 
 # Linker flags
 
-LDFLAGS = -nostdlib -Wl,--gc-sections
+LDFLAGS = -nostdlib --gc-sections
 EXTRA_LIBS = -lgcc
