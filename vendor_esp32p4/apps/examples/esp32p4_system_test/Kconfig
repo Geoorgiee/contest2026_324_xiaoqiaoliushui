@@ -1,0 +1,26 @@
+#
+# ESP32-P4 System Test Application
+#
+
+config EXAMPLES_ESP32P4_SYSTEM_TEST
+	bool "ESP32-P4 System Test"
+	default n
+	depends on ARCH_CHIP_ESP32P4
+	---help---
+		Enable the ESP32-P4 system test application.
+
+		This application runs a comprehensive system test:
+		- Memory allocation test
+		- Timer accuracy test
+		- Task scheduling test
+		- File system test
+
+if EXAMPLES_ESP32P4_SYSTEM_TEST
+
+config EXAMPLES_ESP32P4_SYSTEM_TEST_DURATION
+	int "Test duration (seconds)"
+	default 10
+	---help---
+		Duration of system tests in seconds
+
+endif # EXAMPLES_ESP32P4_SYSTEM_TEST

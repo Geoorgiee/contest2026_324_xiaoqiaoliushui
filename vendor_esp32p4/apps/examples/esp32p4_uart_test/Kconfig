@@ -1,0 +1,32 @@
+#
+# ESP32-P4 UART Test Application
+#
+
+config EXAMPLES_ESP32P4_UART_TEST
+	bool "ESP32-P4 UART Test"
+	default n
+	depends on ARCH_CHIP_ESP32P4
+	---help---
+		Enable the ESP32-P4 UART test application.
+
+		This application tests UART functionality:
+		- Serial port configuration
+		- Data transmission
+		- Data reception
+		- Loopback test
+
+if EXAMPLES_ESP32P4_UART_TEST
+
+config EXAMPLES_ESP32P4_UART_TEST_PORT
+	int "UART port number"
+	default 0
+	---help---
+		UART port number to test (default: 0)
+
+config EXAMPLES_ESP32P4_UART_TEST_BAUD
+	int "UART baud rate"
+	default 115200
+	---help---
+		UART baud rate for testing
+
+endif # EXAMPLES_ESP32P4_UART_TEST

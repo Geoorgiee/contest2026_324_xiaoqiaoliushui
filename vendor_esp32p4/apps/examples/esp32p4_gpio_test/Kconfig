@@ -1,0 +1,37 @@
+#
+# ESP32-P4 GPIO Test Application
+#
+
+config EXAMPLES_ESP32P4_GPIO_TEST
+	bool "ESP32-P4 GPIO Test"
+	default n
+	depends on ARCH_CHIP_ESP32P4
+	---help---
+		Enable the ESP32-P4 GPIO test application.
+
+		This application tests GPIO functionality:
+		- LED blinking (GPIO 26)
+		- Button reading (GPIO 21)
+		- GPIO interrupt handling
+
+if EXAMPLES_ESP32P4_GPIO_TEST
+
+config EXAMPLES_ESP32P4_GPIO_TEST_LED_GPIO
+	int "LED GPIO number"
+	default 26
+	---help---
+		GPIO number for the LED (default: 26)
+
+config EXAMPLES_ESP32P4_GPIO_TEST_BUTTON_GPIO
+	int "Button GPIO number"
+	default 21
+	---help---
+		GPIO number for the button (default: 21)
+
+config EXAMPLES_ESP32P4_GPIO_TEST_BLINK_DELAY
+	int "LED blink delay (ms)"
+	default 500
+	---help---
+		Delay between LED toggle in milliseconds
+
+endif # EXAMPLES_ESP32P4_GPIO_TEST
