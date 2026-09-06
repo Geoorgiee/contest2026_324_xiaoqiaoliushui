@@ -140,8 +140,29 @@ make flash ESPTOOL_PORT=/dev/ttyACM0
 3. **简化实现**：对于自定义板子，可以使用硬编码参数简化配置
 4. **逐步调试**：遇到编译错误时，先分析根本原因再修改
 
+## 最终状态
+
+- ✅ 编译成功
+- ✅ 生成 `nuttx.bin`（193KB）
+- ✅ `make flash` 命令可用
+- ✅ 代码已提交并推送到远程仓库
+
+## 提交记录
+
+### vendor_esp32p4 仓库
+```
+commit dd9cf7d
+feat(esp32p4): 添加 make flash 烧录支持
+```
+
+### nuttx 仓库（本地修改）
+```
+arch/dummy/Kconfig: 移除 select ARCH_RISCV
+```
+
 ## 后续工作
 
 - [ ] 测试实际烧录功能
 - [ ] 完善错误处理
 - [ ] 更新文档
+- [ ] 将 Kconfig 修复提交到上游
