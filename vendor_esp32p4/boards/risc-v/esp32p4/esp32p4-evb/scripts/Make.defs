@@ -20,6 +20,7 @@
 
 include $(TOPDIR)/.config
 include $(TOPDIR)/tools/Config.mk
+include $(BOARD_DIR)$(DELIM)scripts$(DELIM)Config.mk
 include $(BOARD_DIR)$(DELIM)scripts$(DELIM)Toolchain.defs
 
 # Linker script for the ESP32-P4 EVB board.
