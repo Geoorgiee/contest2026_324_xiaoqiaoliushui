@@ -22,7 +22,15 @@ include $(TOPDIR)/Make.defs
 
 # Board-level C source files
 
-CSRCS = esp32p4_bringup.c esp32p4_boot.c
+CSRCS = esp32p4_bringup.c esp32p4_boot.c esp32p4_appinit.c
+
+ifeq ($(CONFIG_BOARDCTL_RESET),y)
+CSRCS += esp32p4_reset.c
+endif
+
+ifeq ($(CONFIG_ETC_ROMFS),y)
+CSRCS += etc_romfs.c
+endif
 
 ifeq ($(CONFIG_ESP32P4_EVB_SDCARD),y)
 CSRCS += esp32p4_sdcard.c
@@ -35,5 +43,3 @@ endif
 ifeq ($(CONFIG_ESP32P4_TINYML),y)
 CSRCS += esp32p4_ml_demo.c
 endif
-
-include $(TOPDIR)/boards/Board.mk

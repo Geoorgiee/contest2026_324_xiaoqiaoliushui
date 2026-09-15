@@ -1,5 +1,7 @@
 # ##############################################################################
-# vendor/espressif/chips/esp32p4/CMakeLists.txt
+# arch/risc-v/src/esp32p4/CMakeLists.txt
+#
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements.  See the NOTICE file distributed with this work for
@@ -18,38 +20,14 @@
 #
 # ##############################################################################
 
-set(SRCS esp32p4_start.c esp32p4_irq.c esp32p4_clockconfig.c esp32p4_serial.c
-         esp32p4_gpio.c esp32p4_timerisr.c esp32p4_allocateheap.c)
+# Include the P4-aware Espressif common layer copied with this custom chip.
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/common/espressif espressif)
 
-if(CONFIG_ESP32P4_SPI2 OR CONFIG_ESP32P4_SPI3)
-  list(APPEND SRCS esp32p4_spi.c)
+set(SRCS esp_chip_rev.c)
+
+target_compile_definitions(arch PRIVATE _RETARGETABLE_LOCKING)
+target_compile_options(arch PRIVATE -Wno-array-bounds -Wno-stringop-overflow)
+
+if(SRCS)
+  target_sources(arch PRIVATE ${SRCS})
 endif()
-
-if(CONFIG_ESP32P4_I2C0 OR CONFIG_ESP32P4_I2C1)
-  list(APPEND SRCS esp32p4_i2c.c)
-endif()
-
-if(CONFIG_ESP32P4_MIPI_DSI)
-  list(APPEND SRCS esp32p4_mipi_dsi.c)
-endif()
-
-if(CONFIG_ESP32P4_BLE)
-  list(APPEND SRCS esp32p4_ble.c)
-endif()
-
-if(CONFIG_ESP32P4_WIFI)
-  list(APPEND SRCS esp32p4_wifi.c)
-endif()
-
-if(CONFIG_ESP32P4_SDMMC)
-  list(APPEND SRCS esp32p4_sdmmc.c)
-endif()
-
-if(CONFIG_ESP32P4_PSRAM)
-  list(APPEND SRCS esp32p4_psram.c)
-endif()
-
-target_sources(arch PRIVATE ${SRCS})
-
-target_include_directories(arch PRIVATE ${NUTTX_CHIP_ABS_DIR}/include)
-target_include_directories(arch PRIVATE ${NUTTX_CHIP_ABS_DIR}/include/hardware)

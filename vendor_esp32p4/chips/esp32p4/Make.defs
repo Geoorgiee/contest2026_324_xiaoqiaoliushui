@@ -1,5 +1,7 @@
 ############################################################################
-# vendor/espressif/chips/esp32p4/Make.defs
+# arch/risc-v/src/esp32p4/Make.defs
+#
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -19,53 +21,11 @@
 ############################################################################
 
 include common/Make.defs
-# Note: We do NOT include common/espressif/Make.defs because the vendor code
-# has its own implementations and doesn't need the esp-hal-3rdparty repository.
-# The hal_esp32p4.mk file provides the necessary definitions.
+include chip$(DELIM)common$(DELIM)espressif$(DELIM)Make.defs
 
-# Specify our HEAD assembly file.  This will be linked as
-# the first object file, so it will appear at address 0
+CHIP_CSRCS += esp_chip_rev.c
 
-HEAD_ASRC = esp_head.S
+CFLAGS += ${DEFINE_PREFIX}_RETARGETABLE_LOCKING
 
-# Specify our C code within this directory to be included
-
-CHIP_CSRCS += esp32p4_start.c
-CHIP_CSRCS += esp32p4_irq.c
-CHIP_CSRCS += esp32p4_clockconfig.c
-CHIP_CSRCS += esp32p4_serial.c
-CHIP_CSRCS += esp32p4_gpio.c
-CHIP_CSRCS += esp32p4_timerisr.c
-CHIP_CSRCS += esp32p4_allocateheap.c
-
-ifeq ($(CONFIG_ESP32P4_BLE),y)
-CHIP_CSRCS += esp32p4_ble.c
-endif
-
-ifneq ($(CONFIG_ESP32P4_SPI2)$(CONFIG_ESP32P4_SPI3),)
-CHIP_CSRCS += esp32p4_spi.c
-endif
-
-ifneq ($(CONFIG_ESP32P4_I2C0)$(CONFIG_ESP32P4_I2C1),)
-CHIP_CSRCS += esp32p4_i2c.c
-endif
-
-ifeq ($(CONFIG_ESP32P4_MIPI_DSI),y)
-CHIP_CSRCS += esp32p4_mipi_dsi.c
-endif
-
-ifeq ($(CONFIG_ESP32P4_SDMMC),y)
-CHIP_CSRCS += esp32p4_sdmmc.c
-endif
-
-ifeq ($(CONFIG_ESP32P4_WIFI),y)
-CHIP_CSRCS += esp32p4_wifi.c
-endif
-
-ifeq ($(CONFIG_ESP32P4_PSRAM),y)
-CHIP_CSRCS += esp32p4_psram.c
-endif
-
-# Include paths for vendor code
-INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)include
-INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)hardware
+# TODO: Remove these flags once ulp/lp_core/lp_core.c is updated.
+CFLAGS += -Wno-array-bounds -Wno-stringop-overflow

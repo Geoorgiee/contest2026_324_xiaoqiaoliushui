@@ -1,5 +1,7 @@
 /****************************************************************************
- * vendor/espressif/chip/esp32p4/include/irq.h
+ * boards/risc-v/esp32p4/common/include/esp_board_rmt.h
+ *
+ * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,47 +20,20 @@
  *
  ****************************************************************************/
 
-/* This file should never be included directly but, rather, only indirectly
- * through nuttx/irq.h
- */
-
-#ifndef __VENDOR_ESPRESSIF_CHIP_ESP32P4_INCLUDE_IRQ_H
-#define __VENDOR_ESPRESSIF_CHIP_ESP32P4_INCLUDE_IRQ_H
+#ifndef __BOARDS_RISC_V_ESP32P4_COMMON_INCLUDE_ESP_BOARD_RMT_H
+#define __BOARDS_RISC_V_ESP32P4_COMMON_INCLUDE_ESP_BOARD_RMT_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <sys/types.h>
-#include <arch/chip/irq.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* ESP32-P4 RISC-V PLIC (Platform-Level Interrupt Controller) */
-
-#define ESP32P4_IRQ_FIRST       16  /* Vector number of the first interrupt */
-
-/* IRQ numbers for ESP32-P4 peripherals */
-
-#define ESP32P4_IRQ_UART0       31  /* UART0 interrupt */
-#define ESP32P4_IRQ_UART1       32  /* UART1 interrupt */
-#define ESP32P4_IRQ_SPI0        33  /* SPI0 interrupt */
-#define ESP32P4_IRQ_SPI1        34  /* SPI1 interrupt */
-#define ESP32P4_IRQ_I2C0        35  /* I2C0 interrupt */
-#define ESP32P4_IRQ_I2C1        36  /* I2C1 interrupt */
-#define ESP32P4_IRQ_USB         37  /* USB OTG interrupt */
-#define ESP32P4_IRQ_GPIO0       38  /* GPIO interrupt */
-#define ESP32P4_IRQ_TIMER0      39  /* Timer0 interrupt */
-#define ESP32P4_IRQ_TIMER1      40  /* Timer1 interrupt */
-
-#define NR_IRQS                 64  /* Total number of IRQs */
-
-/****************************************************************************
- * Public Types
- ****************************************************************************/
+#ifndef __ASSEMBLY__
 
 /****************************************************************************
  * Public Data
@@ -77,9 +52,46 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
+#ifdef CONFIG_ESP_RMT
+
+/****************************************************************************
+ * Name: board_rmt_rxinitialize
+ *
+ * Description:
+ *   Initialize the RMT peripheral and register an RX device.
+ *
+ * Input Parameters:
+ *   pin - The pin used for the RX channel
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int board_rmt_rxinitialize(int pin);
+
+/****************************************************************************
+ * Name: board_rmt_txinitialize
+ *
+ * Description:
+ *   Initialize the RMT peripheral and register an TX device.
+ *
+ * Input Parameters:
+ *   pin - The pin used for the TX channel
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int board_rmt_txinitialize(int pin);
+
+#endif /* CONFIG_ESP_RMT */
+
 #undef EXTERN
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* __VENDOR_ESPRESSIF_CHIP_ESP32P4_INCLUDE_IRQ_H */
+#endif /* __ASSEMBLY__ */
+#endif /* __BOARDS_RISC_V_ESP32P4_COMMON_INCLUDE_ESP_BOARD_RMT_H */

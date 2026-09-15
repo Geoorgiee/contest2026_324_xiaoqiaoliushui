@@ -1,0 +1,86 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_BOARD_CUSTOM
+
+# configure.sh copies this board Kconfig to boards/dummy for an external
+# board, while arch/risc-v/src/board points at the selected board common
+# directory.  Import the common storage choices through that stable build
+# path so ESPRESSIF_SPIFLASH_LITTLEFS survives olddefconfig/savedefconfig.
+source "$BINDIR/arch/risc-v/src/board/Kconfig"
+
+config ARCH_BOARD_ESP32P4_FUNCTION_EV_BOARD
+	bool
+	default y
+
+config ESP32P4_FUNCTION_EV_BOARD_DSI_FRAMEBUFFER
+	bool "Register the P4X MIPI-DSI framebuffer"
+	depends on ESPRESSIF_SPIRAM_USER_HEAP
+	depends on !LVX_USE_DEMO_CONTEST2026_031_DSI_PROBE
+	select ESPRESSIF_MIPI_DSI
+	select ESPRESSIF_MIPI_DSI_VIDEO
+	select ESPRESSIF_MIPI_DSI_VIDEO_DMA
+	select ESPRESSIF_MIPI_DSI_DPI_PANEL
+	select VIDEO_FB
+	select FB_UPDATE
+	default n
+	help
+		Initialize the EK79007 1024x600 MIPI-DSI panel during board
+		bring-up and expose its single RGB565 PSRAM scanout buffer as
+		/dev/fb0.  FBIO_UPDATE performs the cache clean required before
+		GDMA reads CPU-rendered pixels.
+
+		This is mutually exclusive with the staged dsi_probe demo because
+		both own the one P4 DSI Host and EK79007 panel lifecycle.
+
+config ESP32P4_FUNCTION_EV_BOARD_GT911
+	bool "Initialize GT911 touchscreen"
+	depends on ESPRESSIF_I2C0 && ESPRESSIF_I2C0_MASTER_MODE
+	select INPUT
+	select INPUT_GT911
+	default n
+	help
+		Register the P4X LCD adapter's Goodix GT911 capacitive touch
+		controller as /dev/input0.  The reference board routes the shared
+		I2C bus to GPIO8 (SCL) and GPIO7 (SDA), but does not route the
+		controller reset or interrupt signals to the ESP32-P4.  The first
+		board integration therefore uses a 20 ms polling worker.
+
+if ESP32P4_FUNCTION_EV_BOARD_GT911
+
+config ESP32P4_FUNCTION_EV_BOARD_GT911_MAX_POINTS
+	int "GT911 touch points exposed to applications"
+	range 1 5
+	default 1
+	---help---
+		Number of simultaneous GT911 contacts exported through /dev/input0.
+		Keep the P4X default at one point while using the upstream LVGL NuttX
+		adapter: it reads fixed-size samples based on TSIOC_GETMAXPOINTS,
+		whereas GT911 produces variable-size frames.  The Smart Home UI uses
+		single-touch interactions only.  Raising this value requires a
+		variable-length LVGL touchscreen adapter.
+
+endif # ESP32P4_FUNCTION_EV_BOARD_GT911
+
+config ESP32P4_FUNCTION_EV_BOARD_CAMERA
+	bool "Enable P4X camera sensor control"
+	depends on ESPRESSIF_I2C0 && ESPRESSIF_I2C0_MASTER_MODE
+	default n
+	help
+		Enable board-private camera sensor control support.  The first-stage
+		implementation only owns the SCCB/I2C control path; MIPI-CSI, ISP,
+		DMA and /dev/video0 are introduced by later milestones.
+
+config ESP32P4_FUNCTION_EV_BOARD_CAMERA_SC2336
+	bool "Enable SC2336 SCCB product-ID probe"
+	depends on ESP32P4_FUNCTION_EV_BOARD_CAMERA
+	default n
+	---help---
+		Enable the board-private first-stage SC2336 sensor control path.
+		This option only reads the product ID over the P4X camera module's
+		SCCB/I2C0 connection.  It does not initialize MIPI-CSI, ISP, DMA or
+		register /dev/video0.
+
+endif # ARCH_BOARD_CUSTOM

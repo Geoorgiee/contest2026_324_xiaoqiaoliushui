@@ -20,42 +20,50 @@
 
 include $(TOPDIR)/.config
 include $(TOPDIR)/tools/Config.mk
-include $(BOARD_DIR)$(DELIM)scripts$(DELIM)Config.mk
-include $(BOARD_DIR)$(DELIM)scripts$(DELIM)Toolchain.defs
+include $(TOPDIR)/tools/espressif/Config.mk
 
-# Linker script for the ESP32-P4 EVB board.
-#
-# Memory layout:
-#   Flash:  0x42000000 - 0x45FFFFFF (64MB cache window, 16MB physical)
-#   SRAM:   0x4FF00000 - 0x4FFBFFFF (768KB)
-#   PSRAM:  0x48000000 - 0x47FFFFFF (up to 32MB, if enabled)
-#
-# The linker script places .text and .rodata in flash (XIP),
-# and .data and .bss in SRAM.
+# The default value may be omitted from .config; keep Toolchain.defs from
+# emitting an empty -Wstack-usage= option.
+CONFIG_STACK_USAGE_WARNING ?= 0
 
-ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)ld.script
+include $(TOPDIR)/arch/risc-v/src/common/Toolchain.defs
 
-# Compiler flags for the ESP32-P4 EVB board.
-#
-# Architecture-specific flags are provided by Toolchain.defs:
-#   ARCHCFLAGS   - C compiler flags for the target architecture
-#   ARCHCXXFLAGS - C++ compiler flags
-#   ARCHCPUFLAGS - CPU-specific flags (-march=rv32imafc, etc.)
-#   ARCHINCLUDES - Architecture include paths
-#   ARCHDEFINES  - Architecture-specific preprocessor defines
-#
-# We add -pipe for faster compilation and -Werror=return-type for strict
-# return-type checking.  -Werror is intentionally omitted to allow upstream
-# NuttX header warnings (e.g. forward-declared structs in usbhost.h) to
-# compile without blocking the vendor build.
-# -fpic is needed for position-independent code support (required by some
-# ESP32-P4 bootloader stages).
+BOARD_COMMON_DIR := $(TOPDIR)$(DELIM)..$(DELIM)vendor_esp32p4$(DELIM)boards$(DELIM)risc-v$(DELIM)esp32p4$(DELIM)common
+
+# Remove quotes from CONFIG_ESPRESSIF_CHIP_SERIES configuration
+
+CHIP_SERIES = $(patsubst "%",%,$(CONFIG_ESPRESSIF_CHIP_SERIES))
+
+# Pick the linker scripts from the board level if they exist, if not
+# pick the common linker scripts.
+
+ARCHSCRIPT += $(BOARD_COMMON_DIR)/scripts/$(CHIP_SERIES)_aliases.ld
+
+ARCHSCRIPT += $(call FINDSCRIPT,$(CHIP_SERIES)_flat_memory.ld)
+
+ifneq ($(CONFIG_ESP32P4_SELECTS_REV_LESS_V3),y)
+  BOARD_REV = .rev3
+endif
+
+ifeq ($(CONFIG_ESPRESSIF_BOOTLOADER_MCUBOOT),y)
+  ARCHSCRIPT += $(call FINDSCRIPT,$(CHIP_SERIES)_sections$(BOARD_REV).ld)
+else ifeq ($(CONFIG_ESPRESSIF_SIMPLE_BOOT),y)
+  ARCHSCRIPT += $(call FINDSCRIPT,$(CHIP_SERIES)_sections$(BOARD_REV).ld)
+endif
 
 ARCHPICFLAGS = -fpic
 
-CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe -Werror=return-type -Wno-error=implicit-function-declaration
+CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -Werror=return-type
 CPICFLAGS = $(ARCHPICFLAGS) $(CFLAGS)
-CXXFLAGS := $(ARCHCXXFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe
+CXXFLAGS := $(ARCHCXXFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS)
 CXXPICFLAGS = $(ARCHPICFLAGS) $(CXXFLAGS)
 CPPFLAGS := $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS)
 AFLAGS := $(CFLAGS) -D__ASSEMBLY__
+
+# Loadable module definitions
+
+LDMODULEFLAGS += -melf32lriscv
+
+# ELF module definitions
+
+LDELFFLAGS += -melf32lriscv

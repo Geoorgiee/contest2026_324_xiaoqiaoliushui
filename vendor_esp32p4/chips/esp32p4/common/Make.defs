@@ -1,0 +1,7 @@
+############################################################################
+# vendor_esp32p4/chips/esp32p4/common/Make.defs
+#
+# This file includes the common RISC-V Make.defs from nuttx
+############################################################################
+
+include $(TOPDIR)/arch/risc-v/src/common/Make.defs
