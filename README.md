@@ -1,4 +1,43 @@
-# contest2026_324_xiaoqiaoliushui
+# ESP32-P4 移植适配
+
+## 当前状态
+
+**NSH移植适配已编译成功！** 🎉
+
+| 项目 | 内容 |
+|------|------|
+| **目标板** | ESP32-P4 Function EV Board |
+| **配置** | nsh_031（最小NSH系统） |
+| **编译产物** | nuttx.bin (269KB) |
+| **控制台** | UART0 (GPIO37/GPIO38, 115200) |
+| **烧录命令** | `esptool.py -c esp32p4 -p /dev/ttyACM0 -b 921600 write_flash 0x2000 nuttx/nuttx.bin` |
+
+## 目录结构
+
+- `vendor_esp32p4/` — ESP32-P4 板级支持包
+  - `boards/risc-v/esp32p4/` — 板级代码
+  - `chips/esp32p4/` — 芯片代码
+- `logs/` — AI Coding 日志
+- `README.md` — 本文件
+
+## 编译方法
+
+```bash
+cd openvela
+./build.sh vendor_esp32p4/boards/risc-v/esp32p4/esp32p4-function-ev-board/configs/nsh_031 -j4
+```
+
+## 烧录方法
+
+```bash
+# 1. 进入下载模式：按住BOOT键，按一下RST键，松开BOOT键
+# 2. 烧录
+esptool.py -c esp32p4 -p /dev/ttyACM0 -b 921600 write_flash 0x2000 nuttx/nuttx.bin
+# 3. 串口连接
+picocom -b 115200 /dev/ttyUSB0
+```
+
+---
 
 👋 欢迎参加 **2026 首届 openvela AI 硬件开发者大赛**！
 
@@ -23,7 +62,7 @@
 | 赛道                  | 教程导航                                                                                                                                                 |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 快应用 / 手表应用创新 | [快应用教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/quickapp/quickapp_guide_index.md)                         |
-| AI 硬件产品创新       | [AI 硬件赛道教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/ai_hardware/ai_hardware_guide_index.md)              |
+| AI 硬件产品创新       | [AI 硬件赛道教程导航](cla)              |
 | 新硬件适配            | [新硬件适配赛道教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/hardware_porting/hardware_porting_guide_index.md) |
 
 ---
