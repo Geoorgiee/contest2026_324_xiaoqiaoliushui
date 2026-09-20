@@ -1,0 +1,20 @@
+# Build outputs
+*.o
+*.ddc
+*.cmd
+*.d
+*.a
+*.bin
+*.elf
+*.map
+*.lst
+*~
+.built
+.depend
+Make.dep
+
+# Offline HAL tree (pinned copy of esp-hal-3rdparty; keep out of git)
+chip/esp-hal-3rdparty/
+# undo the parent `*/` rule for our subtree
+!*/
+!.gitignore

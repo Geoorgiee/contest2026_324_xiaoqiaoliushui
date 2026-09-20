@@ -1,0 +1,53 @@
+# ##############################################################################
+# board/contest_board/src/CMakeLists.txt
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for
+# additional information regarding copyright ownership.  The ASF licenses this
+# file to you under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License.  You may obtain a copy of
+# the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations under
+# the License.
+#
+# ##############################################################################
+
+set(SRCS esp32p4_boot.c esp32p4_bringup.c esp32p4_appinit.c)
+
+if(CONFIG_DEV_GPIO)
+  list(APPEND SRCS esp32p4_gpio.c)
+endif()
+
+if(CONFIG_I2C_DRIVER AND CONFIG_ESPRESSIF_I2C1_MASTER_MODE)
+  list(APPEND SRCS esp32p4_board_i2c.c)
+endif()
+
+if(CONFIG_BOARDCTL_RESET)
+  list(APPEND SRCS esp32p4_reset.c)
+endif()
+
+if(CONFIG_ESPRESSIF_MIPI_DSI)
+  list(APPEND SRCS esp32p4_lcd.c)
+  target_include_directories(board PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../chip/espressif)
+endif()
+
+if(CONFIG_ESPRESSIF_BOARD_GT911)
+  list(APPEND SRCS esp32p4_touch.c)
+endif()
+
+if(CONFIG_AUDIO AND CONFIG_AUDIO_ES8311 AND CONFIG_ESPRESSIF_I2S)
+  list(APPEND SRCS esp32p4_audio.c)
+  # "espressif/esp_i2{s,c}.h" resolves via -I <board chip dir>
+  target_include_directories(board PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../chip)
+endif()
+
+target_sources(board PRIVATE ${SRCS})
+target_include_directories(board PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

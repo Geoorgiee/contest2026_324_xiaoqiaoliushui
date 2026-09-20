@@ -1,0 +1,60 @@
+#
+# ESP32-P4 out-of-tree custom chip (contest_board/chip).
+#
+# This file is copied to nuttx/arch/dummy/Kconfig at build time (tools/Unix.mk).
+# kconfiglib resolves `source` relative to $(srctree)=nuttx, so the espressif
+# and SoC Kconfig fragments are referenced through the vendor linkfile path.
+# nuttx/ itself is left untouched.
+#
+
+if ARCH_CHIP_CUSTOM
+
+config ARCH_CHIP_ESP32P4
+	bool
+	default y
+	select ARCH_RV32
+	select ARCH_RV_ISA_M
+	select ARCH_RV_ISA_A
+	select ARCH_RV_ISA_C
+	select ARCH_VECNOTIRQ
+	select ARCH_HAVE_MPU
+	select ARCH_HAVE_RESET
+	select ARCH_HAVE_RNG
+	select ARCH_HAVE_TICKLESS
+	select ARCH_HAVE_MULTICPU
+	select ARCH_HAVE_RAMFUNCS
+	select ARCH_MINIMAL_VECTORTABLE
+	# Timer/tick configuration (see docs/bringup/timer_log.txt):
+	#  - Do NOT select ALARM_ARCH: with SCHED_TICKLESS=n the OS tick must come
+	#    from esp_timerisr.c (systimer periodic). ALARM_ARCH switches the timer
+	#    arch to the alarm path and freezes the periodic tick (sleep/uptime hang).
+	#  - riscv_mtimer.c is always compiled and unconditionally uses the clkcnt
+	#    oneshot ABI, which oneshot.h guards behind CONFIG_ONESHOT_COUNT, so
+	#    ONESHOT_COUNT MUST be y or riscv_mtimer.c fails to build.
+	#  - ONESHOT_COUNT is declared under `if ONESHOT` in drivers/timers/Kconfig,
+	#    i.e. it depends on ONESHOT. Select BOTH to keep the dependency
+	#    consistent and avoid the "y-selected but ONESHOT=n" Kconfig warning that
+	#    fails olddefconfig. Still tick mode (no SCHED_TICKLESS, no ALARM_ARCH).
+	select ONESHOT
+	select ONESHOT_COUNT
+	select LIBC_ATOMIC_IRQ
+	select LIBC_ARCH_MEMCPY
+	select LIBC_ARCH_MEMCHR
+	select LIBC_ARCH_MEMCMP
+	select LIBC_ARCH_MEMMOVE
+	select LIBC_ARCH_MEMSET
+	select LIBC_ARCH_STRCHR
+	select LIBC_ARCH_STRCMP
+	select LIBC_ARCH_STRCPY
+	select LIBC_ARCH_STRLCPY
+	select LIBC_ARCH_STRNCPY
+	select LIBC_ARCH_STRLEN
+	select LIBC_ARCH_STRNLEN
+	---help---
+		Espressif ESP32-P4 (RV32IMAC), dual-core RISC-V. Out-of-tree custom
+		chip carried entirely within this contest board directory.
+
+source "../vendor/openvela/boards/contest2026_288_board/chip/espressif/Kconfig"
+source "../vendor/openvela/boards/contest2026_288_board/chip/esp32p4_soc.Kconfig"
+
+endif # ARCH_CHIP_CUSTOM
